@@ -1,0 +1,20 @@
+// Вкладки, которые появятся на следующих этапах.
+(function (PF) {
+  'use strict';
+
+  function placeholder(title, iconName, text) {
+    return {
+      title,
+      render(el) {
+        el.innerHTML =
+          '<header class="top"><h1>' + title + '</h1></header>' +
+          '<div class="placeholder">' + PF.ui.icon(iconName, 'big') + '<p>' + text + '</p></div>';
+      },
+    };
+  }
+
+  PF.screens = PF.screens || {};
+  PF.screens.stats = placeholder('Статистика', 'stats', 'Графики и итоги появятся на этапе 6.');
+  PF.screens.char = placeholder('Персонаж', 'char', 'Персонаж, гардероб и магазин появятся на этапе 4.');
+  PF.screens.tasks = placeholder('Задачи', 'tasks', 'Список задач появится на этапе 5.');
+})(window.PF);
