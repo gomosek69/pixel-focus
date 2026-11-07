@@ -63,7 +63,7 @@
       '<div class="card list danger-zone">' +
       '  <button class="row danger" data-action="wipe">' + ui.icon('trash') + '<span>' + t('Удалить все данные') + '</span></button>' +
       '</div>' +
-      '<p class="note center">Pixel Focus · ' + t('этап {0}', 5) + '</p>';
+      '<p class="note center">Pixel Focus · ' + t('этап {0}', 6) + '</p>';
 
     root.onclick = onClick;
     root.querySelector('#fileIn').addEventListener('change', onFile);

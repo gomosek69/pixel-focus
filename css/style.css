@@ -9,9 +9,16 @@
   --f-hint: #8a8f98;
   --accent: #6366f1;
   --danger: #ef4444;
+  /* Цвета занятий (проверены на различимость, в т.ч. при дальтонизме) */
+  --act-work: #2a78d6;
+  --act-study: #eb6834;
+  --act-rest: #1baf7a;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-scheme="light"]) {
+    --act-work: #3987e5;
+    --act-study: #d95926;
+    --act-rest: #199e70;
     --f-bg: #0e1014;
     --f-card: #1a1d24;
     --f-text: #eceef2;
@@ -19,6 +26,9 @@
   }
 }
 :root[data-scheme="dark"] {
+  --act-work: #3987e5;
+  --act-study: #d95926;
+  --act-rest: #199e70;
   --f-bg: #0e1014;
   --f-card: #1a1d24;
   --f-text: #eceef2;
@@ -456,3 +466,44 @@ textarea.code {
 .task-act.stop { background: var(--c); color: #fff; }
 .quick-dates { display: flex; gap: 8px; flex-wrap: wrap; margin: -2px 0 6px; }
 .chip-btn { padding: 6px 12px; border-radius: 999px; background: var(--soft); font-size: 14px; font-weight: 600; }
+
+/* ---------- статистика ---------- */
+
+.period-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 10px 0; }
+.period-title { font-weight: 600; font-size: 17px; text-align: center; flex: 1; }
+.period-title::first-letter { text-transform: uppercase; }
+.nav-btn {
+  width: 40px; height: 40px; border-radius: 12px; background: var(--card); font-size: 24px; line-height: 1;
+  display: flex; align-items: center; justify-content: center; padding-bottom: 3px;
+}
+.nav-btn:disabled { opacity: .35; }
+.chart-card { padding: 12px 10px 6px; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; padding: 0 6px 8px; font-size: 13px; color: var(--text); }
+.lg { display: inline-flex; align-items: center; gap: 6px; }
+.lg i, .tot-name i, .tip-row i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: none; }
+.chart { position: relative; touch-action: pan-y; }
+.chart svg { display: block; }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .tick { fill: var(--hint); font-size: 11px; font-variant-numeric: tabular-nums; }
+.chart .hl { fill: var(--soft); pointer-events: none; }
+.tip {
+  position: absolute; top: 0; z-index: 2; min-width: 140px; pointer-events: none;
+  background: var(--card); color: var(--text); border-radius: 12px; padding: 8px 10px; font-size: 13px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18), 0 0 0 1px var(--line);
+}
+.tip b { display: block; margin-bottom: 4px; }
+.tip b::first-letter { text-transform: uppercase; }
+.tip-row { display: flex; align-items: center; gap: 6px; }
+.tip-row span { margin-left: auto; padding-left: 10px; font-variant-numeric: tabular-nums; }
+.tip-row.muted { color: var(--hint); }
+.totals .tot-row { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
+.totals .tot-row + .tot-row { border-top: 1px solid var(--line); }
+.tot-name { flex: 1; display: flex; align-items: center; gap: 8px; font-weight: 500; }
+.tot-time { font-variant-numeric: tabular-nums; }
+.tot-share { width: 40px; text-align: right; color: var(--hint); font-size: 13px; font-variant-numeric: tabular-nums; }
+.tot-coins { width: 56px; text-align: right; font-variant-numeric: tabular-nums; font-size: 14px; color: var(--hint); }
+.tot-sum { font-weight: 700; }
+.coins-sum { margin-top: 10px; }
+.coins-sum .kv { padding: 5px 0; }
+.kv-total { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 9px !important; font-weight: 700; }
+.kv-total b { display: inline-flex; align-items: center; gap: 6px; }

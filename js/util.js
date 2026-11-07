@@ -19,9 +19,9 @@ window.PF = window.PF || {};
 
   // Три занятия. code — короткая буква для компактного хранения.
   PF.ACTS = {
-    work: { code: 'w', name: 'Работа', color: '#3b82f6', icon: 'work', rate: 0.3 },
-    study: { code: 's', name: 'Учёба', color: '#8b5cf6', icon: 'study', rate: 1 },
-    rest: { code: 'r', name: 'Отдых', color: '#10b981', icon: 'rest', rate: -1 },
+    work: { code: 'w', name: 'Работа', color: 'var(--act-work)', icon: 'work', rate: 0.3 },
+    study: { code: 's', name: 'Учёба', color: 'var(--act-study)', icon: 'study', rate: 1 },
+    rest: { code: 'r', name: 'Отдых', color: 'var(--act-rest)', icon: 'rest', rate: -1 },
   };
   PF.ACT_ORDER = ['work', 'study', 'rest'];
 

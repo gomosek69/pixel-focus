@@ -228,4 +228,19 @@ PF.EN = {
   'Название слишком длинное (не больше 200 символов).': 'The title is too long (200 characters max).',
   'Чтобы указать время, выберите дату.': 'To set a time, choose a date.',
   'Задача не найдена.': 'Task not found.',
+
+  // статистика
+  'День': 'Day',
+  'Месяц': 'Month',
+  'Год': 'Year',
+  'Вперёд': 'Forward',
+  'Итоги за период': 'Period totals',
+  'За этот период записей нет.': 'No entries for this period.',
+  'Всего': 'Total',
+  'Заработано': 'Earned',
+  'Потеряно на отдыхе': 'Lost on rest',
+  'Итого за период': 'Net for period',
+  'Потрачено в магазине за период: {0} мон.': 'Spent in the shop this period: {0} coins',
+  'График времени по занятиям': 'Time by activity chart',
+  'Нет записей': 'No entries',
 };
