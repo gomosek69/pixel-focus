@@ -125,6 +125,8 @@
     checkAsk();
   }
 
+  PF.app = { switchTab };
+
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
   else start();
 })(window.PF);
