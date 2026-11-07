@@ -16,7 +16,7 @@
   const UNCODE = {};
   Object.keys(ACTS).forEach((k) => { UNCODE[ACTS[k].code] = k; });
 
-  const ASK_FIRST = 4 * 3600;   // первый вопрос «Ты всё ещё занимаешься?» через 4 часа
+  const ASK_FIRST = 2 * 3600;   // первый вопрос «Ты всё ещё занимаешься?» через 2 часа
   const ASK_REPEAT = 2 * 3600;  // после ответа «да» — снова через 2 часа
   const MIN_SESSION = 60;       // занятия короче минуты не сохраняем
   const MAX_MANUAL = 24 * 3600; // ручная запись — не длиннее суток
