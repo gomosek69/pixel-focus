@@ -105,14 +105,15 @@
     PF.screens[current].render(el);
     if (anim) {
       // Поочерёдно проявить стеклянные элементы и заголовки (вложенные — вместе с родителем).
-      const SEL = '.card, .act-btn, .item, .empty, .cat-tab, .ct-btn, .nav-btn, .balance, .quick, .seg, ' +
-        '.btn-small, h1, .group-title, .sec-head h2, .period-title, .day-title, .chips, .note, .more';
+      // Ряды кнопок (.chart-types, .cat-tabs, .period-nav) появляются целиком, а не по одной кнопке.
+      const SEL = '.chart-types, .cat-tabs, .period-nav, .card, .act-btn, .item, .empty, .cat-tab, .ct-btn, .nav-btn, ' +
+        '.balance, .quick, .seg, .btn-small, h1, .group-title, .sec-head h2, .day-head, .note, .more';
       let i = 0;
       el.querySelectorAll(SEL).forEach((node) => {
         const outer = node.parentElement && node.parentElement.closest(SEL);
         if (outer && el.contains(outer)) return;
         node.classList.add('rise');
-        node.style.animationDelay = Math.min(i++ * 55, 550) + 'ms';
+        node.style.animationDelay = Math.min(i++ * 40, 320) + 'ms';
       });
       el.classList.remove('anim-fwd', 'anim-back');
       void el.offsetWidth;
