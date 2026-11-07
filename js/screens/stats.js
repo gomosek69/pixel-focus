@@ -287,6 +287,24 @@
   const tipRow = (k, value) =>
     '<div class="tip-row"><i style="background:' + ACTS[k].color + '"></i>' + t(ACTS[k].name) + '<span>' + value + '</span></div>';
 
+  // Переливающаяся заливка: по цвету занятия пробегает светлый блик (градиент со сдвигом).
+  let gradN = 0;
+  let gid = 'sg0';
+  function gradDefs() {
+    gid = 'sg' + (++gradN);
+    return '<defs>' + ORDER.map((k) => {
+      const c = ACTS[k].color;
+      const light = 'color-mix(in srgb, ' + c + ' 55%, #fff)';
+      return '<linearGradient id="' + gid + k + '" x1="0" y1="0" x2="1" y2="0.35">' +
+        '<stop offset="0" style="stop-color:' + c + '"/><stop offset="0.38" style="stop-color:' + c + '"/>' +
+        '<stop offset="0.5" style="stop-color:' + light + '"/><stop offset="0.62" style="stop-color:' + c + '"/>' +
+        '<stop offset="1" style="stop-color:' + c + '"/>' +
+        '<animateTransform attributeName="gradientTransform" type="translate" values="-1.2 0;1.2 0" dur="3.4s" repeatCount="indefinite"/>' +
+        '</linearGradient>';
+    }).join('') + '</defs>';
+  }
+  const shim = (k) => 'url(#' + gid + k + ')';
+
   function mount(box, f, inner) {
     box.innerHTML = '<svg width="' + f.W + '" height="' + f.H + '" viewBox="0 0 ' + f.W + ' ' + f.H + '" role="img" aria-label="' +
       esc(t('График времени по занятиям')) + '">' + inner + '</svg><div class="tip" id="tip" hidden></div>';
@@ -302,7 +320,7 @@
     const bw = Math.min(24, Math.max(3, slot - (slot > 10 ? 4 : 2)));
     const sc = percent ? { max: 1, step: 0.5 } : niceScale(Math.max(0, ...p.cols.map(colTotal)));
     const fmt = percent ? (v) => Math.round(v * 100) + '%' : tickLabel;
-    let g = gridHtml(f, sc, fmt);
+    let g = gradDefs() + gridHtml(f, sc, fmt);
     p.cols.forEach((c, i) => {
       const x = f.padL + i * slot + (slot - bw) / 2;
       const tot = colTotal(c);
@@ -316,8 +334,8 @@
         const y = base - gap - h;
         const st = ' class="bar" style="animation-delay:' + Math.round(i * (300 / n)) + 'ms"';
         g += j === segs.length - 1
-          ? '<path' + st + ' d="' + topRounded(x, y, bw, h, 3) + '" fill="' + ACTS[k].color + '"/>'
-          : '<rect' + st + ' x="' + x + '" y="' + y + '" width="' + bw + '" height="' + h + '" fill="' + ACTS[k].color + '"/>';
+          ? '<path' + st + ' d="' + topRounded(x, y, bw, h, 3) + '" fill="' + shim(k) + '"/>'
+          : '<rect' + st + ' x="' + x + '" y="' + y + '" width="' + bw + '" height="' + h + '" fill="' + shim(k) + '"/>';
         base = y;
       });
     });
@@ -355,7 +373,7 @@
     const sc = cumulative && mode === 'day' ? niceScaleHours(maxV) : (cumulative ? niceScale(maxV) : niceScale(maxV));
     const yOf = (v) => f.padT + f.ih - (v / sc.max) * f.ih;
     const xOf = (i) => f.padL + i * slot + slot / 2;
-    let g = gridHtml(f, sc, cumulative && mode === 'day' ? hoursLabel : tickLabel);
+    let g = gradDefs() + gridHtml(f, sc, cumulative && mode === 'day' ? hoursLabel : tickLabel);
     g += '<rect id="hl" class="hl" x="0" y="' + f.padT + '" width="' + slot + '" height="' + f.ih + '" visibility="hidden"/>';
     const base = f.padT + f.ih;
     ORDER.forEach((k) => {
@@ -364,6 +382,7 @@
       const line = smoothPath(pts);
       g += '<path d="' + line + 'L' + pts[pts.length - 1].x.toFixed(1) + ',' + base + 'L' + pts[0].x.toFixed(1) + ',' + base + 'Z" ' +
         'class="area" fill="' + ACTS[k].color + '" fill-opacity="0.10"/>';
+      // у линии сплошной цвет: градиент по рамке исчезает на горизонтальной линии
       g += '<path class="line" d="' + line + '" stroke="' + ACTS[k].color + '"/>';
       // точка на конце линии
       const e = pts[pts.length - 1];
@@ -411,6 +430,7 @@
       box.innerHTML = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">' + g + '</svg>';
       return;
     }
+    g += gradDefs();
     const pt = (rad, a) => [cx + rad * Math.sin(a), cy - rad * Math.cos(a)];
     let a0 = 0;
     const slices = [];
@@ -429,7 +449,7 @@
         d = 'M' + x1 + ',' + y1 + 'A' + R + ',' + R + ' 0 ' + big + ' 1 ' + x2 + ',' + y2 +
           'L' + x3 + ',' + y3 + 'A' + r + ',' + r + ' 0 ' + big + ' 0 ' + x4 + ',' + y4 + 'Z';
       }
-      g += '<path class="slice" data-k="' + k + '" d="' + d + '" fill="' + ACTS[k].color + '" fill-rule="evenodd" ' +
+      g += '<path class="slice" data-k="' + k + '" d="' + d + '" fill="' + shim(k) + '" fill-rule="evenodd" ' +
         'style="transform-box:view-box;transform-origin:' + cx + 'px ' + cy + 'px;animation-delay:' + (slices.length * 90) + 'ms"/>';
       slices.push({ k, share, mid: (a0 + a1) / 2 });
       a0 = a1;

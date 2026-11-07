@@ -20,7 +20,7 @@
     root.innerHTML =
       '<header class="top top-row"><h1>' + t('Персонаж') + '</h1>' +
       '  <button class="balance' + (Math.round(b) < 0 ? ' neg' : '') + '" data-action="rates">' + ui.coin() + '<span>' + u.coins(b) + '</span></button></header>' +
-      '<div class="card char-stage">' + C.svg(store.look(), 224) + '</div>' +
+      '<div class="card char-stage">' + C.svg(store.look(), 256) + '</div>' +
       '<div class="seg seg-main" data-seg="char-mode">' +
       '  <button class="seg-btn' + (mode === 'wardrobe' ? ' on' : '') + '" data-mode="wardrobe">' + t('Гардероб') + '</button>' +
       '  <button class="seg-btn' + (mode === 'shop' ? ' on' : '') + '" data-mode="shop">' + t('Магазин') + '</button>' +
@@ -99,7 +99,7 @@
     colOv[it.cat] = idx;
     ui.openSheet({
       html:
-        '<div class="try-pic">' + C.svg(store.look(null, colOv), 192) + '</div>' +
+        '<div class="try-pic">' + C.svg(store.look(null, colOv), 256) + '</div>' +
         '<h3 class="center">' + nm(it) + ' · ' + esc(C.colorName(idx)) + '</h3>' +
         '<div class="try-price">' + ui.coin('big') + u.num(price) + '</div>' +
         (err ? '<div class="form-err center">' + esc(err) + '</div>' : '') +
@@ -126,7 +126,7 @@
     const override = {};
     override[it.cat] = it.id;
     return '<button class="item r-' + it.rarity + (opts.on ? ' on' : '') + '" data-item="' + it.id + '">' +
-      '<span class="item-pic">' + C.svg(store.look(override), 96) + '</span>' +
+      '<span class="item-pic">' + C.svg(store.look(override), 128) + '</span>' +
       '<span class="item-name">' + nm(it) + '</span>' +
       '<span class="item-sub" style="color:' + r.color + '">' + t(C.STYLES[it.style]) + ' · ' + t(r.name) + '</span>' +
       '<span class="item-foot">' + opts.foot + '</span></button>';
@@ -139,11 +139,13 @@
       on: eq[cat] === it.id,
       foot: eq[cat] === it.id ? '<b class="badge">' + t('Надето') + '</b>' : t('Надеть'),
     })).join('');
-    if (cat === 'acc') {
-      html = '<button class="item' + (!eq.acc ? ' on' : '') + '" data-item="none">' +
-        '<span class="item-pic">' + C.svg(store.look({ acc: null }), 96) + '</span>' +
-        '<span class="item-name">' + t('Без аксессуара') + '</span><span class="item-sub">&nbsp;</span>' +
-        '<span class="item-foot">' + (!eq.acc ? '<b class="badge">' + t('Надето') + '</b>' : t('Выбрать')) + '</span></button>' + html;
+    if (cat === 'acc' || cat === 'dance') {
+      const none = {};
+      none[cat] = null;
+      html = '<button class="item' + (!eq[cat] ? ' on' : '') + '" data-item="none">' +
+        '<span class="item-pic">' + C.svg(store.look(none), 128) + '</span>' +
+        '<span class="item-name">' + t(cat === 'acc' ? 'Без аксессуара' : 'Без танца') + '</span><span class="item-sub">&nbsp;</span>' +
+        '<span class="item-foot">' + (!eq[cat] ? '<b class="badge">' + t('Надето') + '</b>' : t('Выбрать')) + '</span></button>' + html;
     }
     if (!list.some((it) => it.rarity !== 'base')) {
       html += '<div class="items-hint">' + t('Новые вещи можно купить в магазине.') + '</div>';
@@ -194,7 +196,7 @@
   }
 
   function onWardrobe(id) {
-    if (id === 'none') { store.unequip('acc'); return; }
+    if (id === 'none') { store.unequip(cat); hop(); return; }
     const it = C.byId[id];
     const eq = store.equipped();
     if (eq[it.cat] === id) {
@@ -217,7 +219,7 @@
     override[it.cat] = id;
     ui.openSheet({
       html:
-        '<div class="try-pic r-' + it.rarity + '">' + C.svg(store.look(override), 192) + '</div>' +
+        '<div class="try-pic r-' + it.rarity + '">' + C.svg(store.look(override), 256) + '</div>' +
         '<h3 class="center">' + nm(it) + '</h3>' +
         '<div class="center item-sub" style="color:' + r.color + '">' + t(C.STYLES[it.style]) + ' · ' + t(r.name) + '</div>' +
         (it.pal ? '<div class="center hint">' + t('После покупки цвет можно сменить в гардеробе.') + '</div>' : '') +

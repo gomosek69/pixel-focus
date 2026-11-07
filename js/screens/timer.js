@@ -86,7 +86,7 @@
   // Маленький персонаж на главном экране (нажатие открывает вкладку «Персонаж»).
   function charHtml() {
     return '<button class="cur-char" data-action="char" aria-label="' + t('Персонаж') + '">' +
-      PF.char.svg(store.look(), 96) + '</button>';
+      PF.char.svg(store.look(), 128) + '</button>';
   }
 
   function renderActs() {

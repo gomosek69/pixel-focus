@@ -51,7 +51,7 @@
   function defaultChar() {
     return {
       g: 'm', skin: 1, eyes: 0, hc: 1,
-      eq: { hair: 'hair_short', top: 'top_tee', pants: 'pants_jeans', shoes: 'shoes_keds', acc: null },
+      eq: { hair: 'hair_short', top: 'top_tee', pants: 'pants_jeans', shoes: 'shoes_keds', acc: null, dance: null },
       buy: [],
       col: {}, // выбранный цвет вещи: { id вещи: номер цвета в палитре }
     };
@@ -361,7 +361,7 @@
     if (ch.eq && typeof ch.eq === 'object') {
       Object.keys(out.eq).forEach((cat) => {
         const id = ch.eq[cat];
-        if (id === null && cat === 'acc') out.eq.acc = null;
+        if (id === null && (cat === 'acc' || cat === 'dance')) out.eq[cat] = null;
         else if (typeof id === 'string') out.eq[cat] = id;
       });
     }
