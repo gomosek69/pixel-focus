@@ -8,6 +8,13 @@
 
   let root = null;
 
+  // Короткая техническая справка: где запущено приложение.
+  function tgInfo() {
+    const tg = window.Telegram && window.Telegram.WebApp;
+    if (!tg || !tg.platform || tg.platform === 'unknown') return 'не обнаружен';
+    return tg.platform + ', версия ' + tg.version + (tg.initData ? '' : ', без данных запуска');
+  }
+
   function backupFileName() {
     return 'pixel-focus-' + u.dayKey(u.nowSec()) + '.json';
   }
@@ -40,11 +47,12 @@
       '  <div class="kv"><span>Где хранятся данные</span></div><p class="note tight">' + where + '</p>' +
       '  <div class="kv"><span>Записей</span><b>' + store.S.records.length + '</b></div>' +
       (cloud ? '<div class="kv"><span>Занято ячеек облака</span><b>' + store.keyCount() + ' из 1024</b></div>' : '') +
+      '  <div class="kv"><span>Telegram</span><b>' + u.esc(tgInfo()) + '</b></div>' +
       '</div>' +
       '<div class="card list danger-zone">' +
       '  <button class="row danger" data-action="wipe">' + ui.icon('trash') + '<span>Удалить все данные</span></button>' +
       '</div>' +
-      '<p class="note center">Pixel Focus · этап 1</p>';
+      '<p class="note center">Pixel Focus · этап 2</p>';
 
     root.onclick = onClick;
     root.querySelector('#fileIn').addEventListener('change', onFile);

@@ -120,7 +120,7 @@
 
   async function init() {
     const tg = PF.tg;
-    const inTelegram = !!(tg && tg.initData);
+    const inTelegram = !!tg; // app.js кладёт сюда объект Telegram только внутри Telegram
     const canCloud = inTelegram && tg.CloudStorage && tg.isVersionAtLeast && tg.isVersionAtLeast('6.9');
     PF.storageWarning = null;
 
@@ -139,6 +139,21 @@
       backend = PF.storage.local();
       docs = new PF.storage.DocStore(backend);
       loaded = await docs.loadAll();
+    }
+
+    // Облако пустое, а на этом устройстве уже есть записи (сохранённые раньше
+    // в память встроенного браузера) — переносим их в облако.
+    if (backend.name === 'cloud' && !Object.keys(loaded).length) {
+      try {
+        const localDocs = await new PF.storage.DocStore(PF.storage.local()).loadAll();
+        if (Object.keys(localDocs).length) {
+          await docs.writeDocs(localDocs);
+          loaded = localDocs;
+          PF.migratedNotice = 'Записи с этого устройства перенесены в облако Telegram.';
+        }
+      } catch (e) {
+        console.error('Не удалось перенести записи в облако', e);
+      }
     }
     applyDocs(loaded);
   }

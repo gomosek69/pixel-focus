@@ -15,7 +15,10 @@
 
   function setupTelegram() {
     const tg = window.Telegram && window.Telegram.WebApp;
-    if (!tg || !tg.initData) { PF.tg = null; return; }
+    // Внутри Telegram есть либо данные запуска (initData), либо известная платформа.
+    // В обычном браузере библиотека Telegram сообщает платформу 'unknown'.
+    const inTelegram = !!tg && (!!tg.initData || (!!tg.platform && tg.platform !== 'unknown'));
+    if (!inTelegram) { PF.tg = null; return; }
     PF.tg = tg;
     document.documentElement.classList.add('in-tg');
     try {
@@ -115,6 +118,7 @@
     window.addEventListener('pagehide', () => PF.store.flush());
 
     setInterval(tick, 1000);
+    if (PF.migratedNotice) PF.ui.toast(PF.migratedNotice, true);
     checkAsk();
   }
 
