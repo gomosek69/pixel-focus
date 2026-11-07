@@ -122,6 +122,7 @@
     const total = ORDER.reduce((sum, k) => sum + p.totals[k], 0);
     root.innerHTML =
       '<header class="top"><h1>' + t('Статистика') + '</h1></header>' +
+      chartTypesHtml() +
       '<div class="seg seg-main">' +
       ['day', 'month', 'year'].map((m) =>
         '<button class="seg-btn' + (mode === m ? ' on' : '') + '" data-mode="' + m + '">' +
@@ -173,6 +174,18 @@
     return p.spent ? '<p class="note">' + t('Потрачено в магазине за период: {0} мон.', u.num(p.spent)) + '</p>' : '';
   }
 
+  // ---------- графики ----------
+
+  const CHART_TYPES = [
+    { id: 'bars', name: 'Столбцы', icon: 'stats' },
+    { id: 'percent', name: 'Проценты', icon: 'percent' },
+    { id: 'pie', name: 'Круговая', icon: 'pie' },
+    { id: 'lines', name: 'Линии', icon: 'lines' },
+    { id: 'cumulative', name: 'Накопление', icon: 'area' },
+  ];
+
+  const colTotal = (c) => ORDER.reduce((s2, k) => s2 + c.v[k], 0);
+
   // Прямоугольник со скруглёнными верхними углами (основание — прямое).
   function topRounded(x, y, w, h, r) {
     r = Math.min(r, w / 2, h);
@@ -180,84 +193,269 @@
       'H' + (x + w - r) + 'Q' + (x + w) + ',' + y + ' ' + (x + w) + ',' + (y + r) + 'V' + (y + h) + 'Z';
   }
 
-  function drawChart() {
-    const box = root.querySelector('#chart');
-    const p = model;
-    const W = Math.max(260, box.clientWidth || 320);
-    const H = 190;
-    const padL = 50, padR = 6, padT = 10, padB = 22;
-    const iw = W - padL - padR, ih = H - padT - padB;
-    const maxCol = Math.max(0, ...p.cols.map((c) => ORDER.reduce((s2, k) => s2 + c.v[k], 0)));
-    const sc = niceScale(maxCol);
-    const n = p.cols.length;
-    const slot = iw / n;
-    const bw = Math.min(24, Math.max(3, slot - (slot > 10 ? 4 : 2)));
-    const yOf = (v) => padT + ih - (v / sc.max) * ih;
-    let g = '';
-    // сетка и подписи шкалы
-    for (let v = 0; v <= sc.max + 1; v += sc.step) {
-      const y = Math.round(yOf(v)) + 0.5;
-      g += '<line class="grid" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y + '" y2="' + y + '"/>' +
-        '<text class="tick" x="' + (padL - 6) + '" y="' + (y + 4) + '" text-anchor="end">' + tickLabel(v) + '</text>';
+  // Плавная линия без «выбросов» за пределы данных (монотонная кубическая кривая).
+  function smoothPath(pts) {
+    const n = pts.length;
+    if (!n) return '';
+    if (n === 1) return 'M' + pts[0].x + ',' + pts[0].y;
+    const d = [], m = new Array(n);
+    for (let i = 0; i < n - 1; i++) d.push((pts[i + 1].y - pts[i].y) / (pts[i + 1].x - pts[i].x));
+    m[0] = d[0];
+    m[n - 1] = d[n - 2];
+    for (let i = 1; i < n - 1; i++) m[i] = d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2;
+    for (let i = 0; i < n - 1; i++) {
+      if (d[i] === 0) { m[i] = 0; m[i + 1] = 0; continue; }
+      const a = m[i] / d[i], b = m[i + 1] / d[i], s2 = a * a + b * b;
+      if (s2 > 9) { const tau = 3 / Math.sqrt(s2); m[i] = tau * a * d[i]; m[i + 1] = tau * b * d[i]; }
     }
-    // столбцы: сегменты снизу вверх, между ними зазор 2px, верхний — со скруглением
-    p.cols.forEach((c, i) => {
-      const x = padL + i * slot + (slot - bw) / 2;
-      let base = padT + ih;
-      const segs = ORDER.filter((k) => c.v[k] > 0);
-      segs.forEach((k, j) => {
-        let h = (c.v[k] / sc.max) * ih;
-        const isTop = j === segs.length - 1;
-        const gap = j > 0 ? 2 : 0;
-        h = Math.max(0, h - gap);
-        if (h < 0.5) { base -= gap; return; }
-        const y = base - gap - h;
-        g += isTop
-          ? '<path d="' + topRounded(x, y, bw, h, 3) + '" fill="' + ACTS[k].color + '"/>'
-          : '<rect x="' + x + '" y="' + y + '" width="' + bw + '" height="' + h + '" fill="' + ACTS[k].color + '"/>';
-        base = y;
-      });
-      if (c.label) {
-        g += '<text class="tick" x="' + (padL + i * slot + slot / 2) + '" y="' + (H - 6) + '" text-anchor="middle">' + c.label + '</text>';
-      }
-    });
-    // подсветка выбранного столбца
-    g += '<rect id="hl" class="hl" x="0" y="' + padT + '" width="' + slot + '" height="' + ih + '" visibility="hidden"/>';
-    box.innerHTML =
-      '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' +
-      esc(t('График времени по занятиям')) + '">' + g + '</svg><div class="tip" id="tip" hidden></div>';
+    let path = 'M' + pts[0].x.toFixed(1) + ',' + pts[0].y.toFixed(1);
+    for (let i = 0; i < n - 1; i++) {
+      const p0 = pts[i], p1 = pts[i + 1], dx = (p1.x - p0.x) / 3;
+      path += 'C' + (p0.x + dx).toFixed(1) + ',' + (p0.y + m[i] * dx).toFixed(1) + ' ' +
+        (p1.x - dx).toFixed(1) + ',' + (p1.y - m[i + 1] * dx).toFixed(1) + ' ' + p1.x.toFixed(1) + ',' + p1.y.toFixed(1);
+    }
+    return path;
+  }
 
+  function chartTypesHtml() {
+    const cur = store.S.prefs.chart;
+    return '<div class="chart-types" role="tablist">' + CHART_TYPES.map((c) =>
+      '<button class="ct-btn' + (cur === c.id ? ' on' : '') + '" data-chart="' + c.id + '">' + ui.icon(c.icon) + t(c.name) + '</button>').join('') + '</div>';
+  }
+
+  function drawChart() {
+    const type = store.S.prefs.chart;
+    if (type === 'pie') drawPie();
+    else if (type === 'lines' || type === 'cumulative') drawLines(type === 'cumulative');
+    else drawBars(type === 'percent');
+  }
+
+  // Общая разметка осей: сетка, подписи шкалы и подписи столбцов.
+  function frame(W, H) {
+    return { W, H, padL: 50, padR: 8, padT: 10, padB: 22, get iw() { return this.W - this.padL - this.padR; }, get ih() { return this.H - this.padT - this.padB; } };
+  }
+
+  function gridHtml(f, sc, fmt) {
+    let g = '';
+    for (let v = 0; v <= sc.max + 1e-6; v += sc.step) {
+      const y = Math.round(f.padT + f.ih - (v / sc.max) * f.ih) + 0.5;
+      g += '<line class="grid" x1="' + f.padL + '" x2="' + (f.W - f.padR) + '" y1="' + y + '" y2="' + y + '"/>' +
+        '<text class="tick" x="' + (f.padL - 6) + '" y="' + (y + 4) + '" text-anchor="end">' + fmt(v) + '</text>';
+    }
+    return g;
+  }
+
+  function xLabels(f, slot) {
+    return model.cols.map((c, i) => (c.label
+      ? '<text class="tick" x="' + (f.padL + i * slot + slot / 2) + '" y="' + (f.H - 6) + '" text-anchor="middle">' + c.label + '</text>'
+      : '')).join('');
+  }
+
+  // Подсказка при наведении/нажатии на столбец (для столбцов и линий).
+  function attachHover(box, f, slot, rowsFor, onIndex) {
     const svg = box.querySelector('svg');
     const tip = box.querySelector('#tip');
     const hl = box.querySelector('#hl');
+    const n = model.cols.length;
+    const hide = () => { tip.hidden = true; if (hl) hl.setAttribute('visibility', 'hidden'); if (onIndex) onIndex(-1); };
     const show = (ev) => {
       const rect = svg.getBoundingClientRect();
-      const x = ev.clientX - rect.left;
-      const i = Math.floor((x - padL) / slot);
+      const i = Math.floor((ev.clientX - rect.left - f.padL) / slot);
       if (i < 0 || i >= n) { hide(); return; }
-      const c = p.cols[i];
-      const tot = ORDER.reduce((s2, k) => s2 + c.v[k], 0);
-      hl.setAttribute('x', padL + i * slot);
-      hl.setAttribute('visibility', 'visible');
-      tip.innerHTML = '<b>' + esc(c.tip) + '</b>' + (tot
-        ? ORDER.filter((k) => c.v[k] > 0).map((k) =>
-          '<div class="tip-row"><i style="background:' + ACTS[k].color + '"></i>' + t(ACTS[k].name) +
-          '<span>' + u.durShort(c.v[k]) + '</span></div>').join('')
-        : '<div class="tip-row muted">' + t('Нет записей') + '</div>');
+      const c = model.cols[i];
+      if (hl) { hl.setAttribute('x', f.padL + i * slot); hl.setAttribute('visibility', 'visible'); }
+      if (onIndex) onIndex(i);
+      const rows = rowsFor(c, i);
+      tip.innerHTML = '<b>' + esc(c.tip) + '</b>' + (rows || '<div class="tip-row muted">' + t('Нет записей') + '</div>');
       tip.hidden = false;
       const tw = tip.offsetWidth;
-      const cx = padL + i * slot + slot / 2;
-      tip.style.left = Math.max(0, Math.min(W - tw, cx - tw / 2)) + 'px';
+      const cx = f.padL + i * slot + slot / 2;
+      tip.style.left = Math.max(0, Math.min(f.W - tw, cx - tw / 2)) + 'px';
     };
-    const hide = () => { tip.hidden = true; hl.setAttribute('visibility', 'hidden'); };
     svg.addEventListener('pointermove', show);
     svg.addEventListener('pointerdown', show);
     svg.addEventListener('pointerleave', (ev) => { if (ev.pointerType === 'mouse') hide(); });
   }
 
+  const tipRow = (k, value) =>
+    '<div class="tip-row"><i style="background:' + ACTS[k].color + '"></i>' + t(ACTS[k].name) + '<span>' + value + '</span></div>';
+
+  function mount(box, f, inner) {
+    box.innerHTML = '<svg width="' + f.W + '" height="' + f.H + '" viewBox="0 0 ' + f.W + ' ' + f.H + '" role="img" aria-label="' +
+      esc(t('График времени по занятиям')) + '">' + inner + '</svg><div class="tip" id="tip" hidden></div>';
+  }
+
+  // Столбцы (обычные или «проценты» — каждый столбец = 100%).
+  function drawBars(percent) {
+    const box = root.querySelector('#chart');
+    const p = model;
+    const f = frame(Math.max(260, box.clientWidth || 320), 190);
+    const n = p.cols.length;
+    const slot = f.iw / n;
+    const bw = Math.min(24, Math.max(3, slot - (slot > 10 ? 4 : 2)));
+    const sc = percent ? { max: 1, step: 0.5 } : niceScale(Math.max(0, ...p.cols.map(colTotal)));
+    const fmt = percent ? (v) => Math.round(v * 100) + '%' : tickLabel;
+    let g = gridHtml(f, sc, fmt);
+    p.cols.forEach((c, i) => {
+      const x = f.padL + i * slot + (slot - bw) / 2;
+      const tot = colTotal(c);
+      let base = f.padT + f.ih;
+      const segs = ORDER.filter((k) => c.v[k] > 0);
+      segs.forEach((k, j) => {
+        const val = percent ? c.v[k] / tot : c.v[k];
+        const gap = j > 0 ? 2 : 0;
+        const h = Math.max(0, (val / sc.max) * f.ih - gap);
+        if (h < 0.5) { base -= gap; return; }
+        const y = base - gap - h;
+        g += j === segs.length - 1
+          ? '<path d="' + topRounded(x, y, bw, h, 3) + '" fill="' + ACTS[k].color + '"/>'
+          : '<rect x="' + x + '" y="' + y + '" width="' + bw + '" height="' + h + '" fill="' + ACTS[k].color + '"/>';
+        base = y;
+      });
+    });
+    g += xLabels(f, slot);
+    g += '<rect id="hl" class="hl" x="0" y="' + f.padT + '" width="' + slot + '" height="' + f.ih + '" visibility="hidden"/>';
+    mount(box, f, g);
+    // подсветка — под столбцами
+    const svg = box.querySelector('svg');
+    svg.insertBefore(box.querySelector('#hl'), svg.firstChild);
+    attachHover(box, f, slot, (c) => {
+      const tot = colTotal(c);
+      return ORDER.filter((k) => c.v[k] > 0).map((k) =>
+        tipRow(k, percent ? Math.round(c.v[k] / tot * 100) + '% · ' + u.durShort(c.v[k]) : u.durShort(c.v[k]))).join('');
+    });
+  }
+
+  // Линии (время по каждому занятию) или накопление (нарастающий итог за период).
+  function drawLines(cumulative) {
+    const box = root.querySelector('#chart');
+    const p = model;
+    const f = frame(Math.max(260, box.clientWidth || 320), 200);
+    const n = p.cols.length;
+    const slot = f.iw / n;
+    const now = u.nowSec();
+    // До какого столбца рисовать: будущее не показываем.
+    let last = n - 1;
+    while (last > 0 && p.cols[last].s > now) last--;
+    const series = {};
+    ORDER.forEach((k) => {
+      let acc = 0;
+      series[k] = p.cols.slice(0, last + 1).map((c) => (cumulative ? (acc += c.v[k]) : c.v[k]));
+    });
+    let maxV = 0;
+    ORDER.forEach((k) => series[k].forEach((v) => { if (v > maxV) maxV = v; }));
+    const sc = cumulative && mode === 'day' ? niceScaleHours(maxV) : (cumulative ? niceScale(maxV) : niceScale(maxV));
+    const yOf = (v) => f.padT + f.ih - (v / sc.max) * f.ih;
+    const xOf = (i) => f.padL + i * slot + slot / 2;
+    let g = gridHtml(f, sc, cumulative && mode === 'day' ? hoursLabel : tickLabel);
+    g += '<rect id="hl" class="hl" x="0" y="' + f.padT + '" width="' + slot + '" height="' + f.ih + '" visibility="hidden"/>';
+    const base = f.padT + f.ih;
+    ORDER.forEach((k) => {
+      const pts = series[k].map((v, i) => ({ x: xOf(i), y: yOf(v) }));
+      if (!pts.length) return;
+      const line = smoothPath(pts);
+      g += '<path d="' + line + 'L' + pts[pts.length - 1].x.toFixed(1) + ',' + base + 'L' + pts[0].x.toFixed(1) + ',' + base + 'Z" ' +
+        'fill="' + ACTS[k].color + '" fill-opacity="0.10"/>';
+      g += '<path class="line" d="' + line + '" stroke="' + ACTS[k].color + '"/>';
+      // точка на конце линии
+      const e = pts[pts.length - 1];
+      g += '<circle class="dot" cx="' + e.x.toFixed(1) + '" cy="' + e.y.toFixed(1) + '" r="4" fill="' + ACTS[k].color + '"/>';
+    });
+    g += xLabels(f, slot);
+    g += '<g id="marks"></g>';
+    mount(box, f, g);
+    const marks = box.querySelector('#marks');
+    attachHover(box, f, slot, (c, i) => {
+      if (i > last) return '';
+      const rows = ORDER.filter((k) => series[k][i] > 0).map((k) => tipRow(k, u.durShort(series[k][i]))).join('');
+      return rows;
+    }, (i) => {
+      if (i < 0 || i > last) { marks.innerHTML = ''; return; }
+      marks.innerHTML = ORDER.map((k) =>
+        '<circle class="dot" cx="' + xOf(i).toFixed(1) + '" cy="' + yOf(series[k][i]).toFixed(1) + '" r="5" fill="' + ACTS[k].color + '"/>').join('');
+    });
+  }
+
+  // Шкала в часах (для накопления за день).
+  function niceScaleHours(maxSec) {
+    const h = maxSec / 3600;
+    const steps = [0.5, 1, 2, 3, 4, 5, 6];
+    const step = steps.find((st) => st * 4 >= h) || 6;
+    return { max: Math.max(step, Math.ceil(h / step) * step) * 3600, step: step * 3600 };
+  }
+  function hoursLabel(v) {
+    const h = v / 3600;
+    return (Number.isInteger(h) ? h : h.toFixed(1)) + (en() ? ' h' : ' ч');
+  }
+
+  // Круговая диаграмма (кольцо) с процентами за весь период.
+  function drawPie() {
+    const box = root.querySelector('#chart');
+    const p = model;
+    const W = Math.max(260, box.clientWidth || 320);
+    const H = 220;
+    const total = ORDER.reduce((s2, k) => s2 + p.totals[k], 0);
+    const cx = W / 2, cy = H / 2, R = 82, r = 52;
+    let g = '';
+    if (!total) {
+      g = '<circle cx="' + cx + '" cy="' + cy + '" r="' + ((R + r) / 2) + '" fill="none" stroke="var(--line)" stroke-width="' + (R - r) + '"/>' +
+        '<text class="pie-sub" x="' + cx + '" y="' + (cy + 4) + '" text-anchor="middle">' + t('Нет записей') + '</text>';
+      box.innerHTML = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">' + g + '</svg>';
+      return;
+    }
+    const pt = (rad, a) => [cx + rad * Math.sin(a), cy - rad * Math.cos(a)];
+    let a0 = 0;
+    const slices = [];
+    ORDER.forEach((k) => {
+      const share = p.totals[k] / total;
+      if (share <= 0) return;
+      const a1 = a0 + share * Math.PI * 2;
+      const big = a1 - a0 > Math.PI ? 1 : 0;
+      let d;
+      if (share >= 0.9999) {
+        // полный круг
+        d = 'M' + cx + ',' + (cy - R) + 'A' + R + ',' + R + ' 0 1 1 ' + (cx - 0.01) + ',' + (cy - R) + 'Z' +
+          'M' + cx + ',' + (cy - r) + 'A' + r + ',' + r + ' 0 1 0 ' + (cx + 0.01) + ',' + (cy - r) + 'Z';
+      } else {
+        const [x1, y1] = pt(R, a0), [x2, y2] = pt(R, a1), [x3, y3] = pt(r, a1), [x4, y4] = pt(r, a0);
+        d = 'M' + x1 + ',' + y1 + 'A' + R + ',' + R + ' 0 ' + big + ' 1 ' + x2 + ',' + y2 +
+          'L' + x3 + ',' + y3 + 'A' + r + ',' + r + ' 0 ' + big + ' 0 ' + x4 + ',' + y4 + 'Z';
+      }
+      g += '<path class="slice" data-k="' + k + '" d="' + d + '" fill="' + ACTS[k].color + '" fill-rule="evenodd"/>';
+      slices.push({ k, share, mid: (a0 + a1) / 2 });
+      a0 = a1;
+    });
+    // проценты снаружи кольца (для заметных долей)
+    slices.forEach((s) => {
+      if (s.share < 0.04) return;
+      const [lx, ly] = pt(R + 16, s.mid);
+      const anchor = Math.abs(lx - cx) < 8 ? 'middle' : lx > cx ? 'start' : 'end';
+      g += '<text class="pie-label" x="' + lx.toFixed(1) + '" y="' + (ly + 4).toFixed(1) + '" text-anchor="' + anchor + '">' +
+        Math.round(s.share * 100) + '%</text>';
+    });
+    g += '<text class="pie-center" x="' + cx + '" y="' + (cy + 2) + '" text-anchor="middle">' + esc(u.durShort(total)) + '</text>' +
+      '<text class="pie-sub" x="' + cx + '" y="' + (cy + 20) + '" text-anchor="middle">' + t('всего') + '</text>';
+    box.innerHTML = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' +
+      esc(t('График времени по занятиям')) + '">' + g + '</svg><div class="tip" id="tip" hidden></div>';
+    const tip = box.querySelector('#tip');
+    box.querySelectorAll('.slice').forEach((el) => {
+      const showTip = () => {
+        const k = el.dataset.k;
+        tip.innerHTML = tipRow(k, Math.round(p.totals[k] / total * 100) + '% · ' + u.durShort(p.totals[k]));
+        tip.hidden = false;
+        tip.style.left = Math.max(0, (W - tip.offsetWidth) / 2) + 'px';
+      };
+      el.addEventListener('pointerenter', showTip);
+      el.addEventListener('pointerdown', showTip);
+    });
+    box.querySelector('svg').addEventListener('pointerleave', (ev) => { if (ev.pointerType === 'mouse') tip.hidden = true; });
+  }
+
   // ---------- нажатия ----------
 
   function onClick(e) {
+    const ct = e.target.closest('[data-chart]');
+    if (ct) { store.setPref('chart', ct.dataset.chart); return; }
     const m = e.target.closest('[data-mode]');
     if (m) { mode = m.dataset.mode; anchor = new Date(); render(root); return; }
     const nav = e.target.closest('[data-nav]');

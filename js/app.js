@@ -28,13 +28,49 @@
       if (tg.isVersionAtLeast('6.1')) {
         tg.BackButton.onClick(() => PF.ui.closeTopSheet());
       }
-      const applyScheme = () => {
-        document.documentElement.dataset.scheme = tg.colorScheme || 'light';
-      };
-      applyScheme();
-      tg.onEvent('themeChanged', applyScheme);
+      document.documentElement.dataset.scheme = tg.colorScheme || 'light';
+      tg.onEvent('themeChanged', () => applyTheme());
     } catch (e) {
       console.warn('Telegram setup', e);
+    }
+  }
+
+  // Применить тему, основной цвет и фон из настроек.
+  function applyTheme() {
+    const root = document.documentElement;
+    const pr = PF.store.S.prefs;
+    const tg = PF.tg;
+    if (pr.theme === 'auto') {
+      delete root.dataset.theme;
+      if (tg) root.dataset.scheme = tg.colorScheme || 'light';
+      else delete root.dataset.scheme;
+    } else {
+      root.dataset.theme = pr.theme;
+      root.dataset.scheme = pr.theme;
+    }
+    const acc = pr.accent === 'auto' ? null : PF.ACCENTS[pr.accent];
+    if (acc) {
+      root.style.setProperty('--primary', acc.hex);
+      root.style.setProperty('--primary-text', '#fff');
+    } else {
+      root.style.removeProperty('--primary');
+      root.style.removeProperty('--primary-text');
+    }
+    document.body.dataset.pfBg = String(pr.bg || 0);
+    // Подкрасить шапку и фон Telegram под выбранную тему.
+    if (tg && tg.isVersionAtLeast) {
+      try {
+        const bg = getComputedStyle(document.documentElement).backgroundColor;
+        const m = bg.match(/\d+/g);
+        const hex = m ? '#' + m.slice(0, 3).map((x) => Number(x).toString(16).padStart(2, '0')).join('') : null;
+        if (pr.theme === 'auto') {
+          if (tg.isVersionAtLeast('6.1')) { tg.setHeaderColor('secondary_bg_color'); tg.setBackgroundColor('secondary_bg_color'); }
+        } else if (hex) {
+          if (tg.isVersionAtLeast('6.9')) tg.setHeaderColor(hex);
+          if (tg.isVersionAtLeast('6.1')) tg.setBackgroundColor(hex);
+          if (tg.isVersionAtLeast('7.10') && tg.setBottomBarColor) tg.setBottomBarColor(hex);
+        }
+      } catch (e) { /* не важно */ }
     }
   }
 
@@ -47,6 +83,7 @@
 
   function renderScreen() {
     const el = document.getElementById('screen');
+    document.body.dataset.pfTab = current;
     PF.screens[current].render(el);
   }
 
@@ -89,6 +126,7 @@
     document.getElementById('app').hidden = false;
 
     lastDay = PF.u.dayKey(PF.u.nowSec());
+    applyTheme();
     renderTabbar();
     renderScreen();
 
@@ -100,6 +138,8 @@
     PF.store.on((type, payload) => {
       if (type === 'lang') {
         renderTabbar();
+      } else if (type === 'theme') {
+        applyTheme();
       } else if (type === 'change') {
         // Перерисовываем текущую вкладку (формы во всплывающих окнах не трогаются).
         renderScreen();

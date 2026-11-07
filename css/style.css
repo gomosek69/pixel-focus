@@ -44,13 +44,24 @@
   --soft: rgba(128, 128, 128, 0.12);
   --radius: 16px;
   --tabbar-h: 64px;
+  /* Основной цвет: по умолчанию как кнопки Telegram; в Настройках можно выбрать свой */
+  --primary: var(--tg-theme-button-color, var(--accent));
+  --primary-text: var(--tg-theme-button-text-color, #fff);
 }
+
+/* Тема, выбранная вручную, не берёт цвета из Telegram */
+:root[data-theme="light"], :root[data-theme="dark"] {
+  --bg: var(--f-bg);
+  --card: var(--f-card);
+  --text: var(--f-text);
+  --hint: var(--f-hint);
+}
+:root[data-theme] { --primary: var(--accent); --primary-text: #fff; }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 html, body {
   margin: 0;
-  background: var(--bg);
   color: var(--text);
   font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -154,7 +165,7 @@ input, textarea { font: inherit; color: inherit; }
 }
 .btn:active { transform: scale(.98); }
 .btn .ic { width: 18px; height: 18px; }
-.btn-primary { background: var(--tg-theme-button-color, var(--accent)); color: var(--tg-theme-button-text-color, #fff); }
+.btn-primary { background: var(--primary); color: var(--primary-text); }
 .btn-ghost { background: var(--soft); }
 .btn-danger { background: var(--danger); color: #fff; }
 .btn-danger-ghost { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
@@ -233,7 +244,7 @@ input, textarea { font: inherit; color: inherit; }
 }
 .row + .row { border-top: 1px solid var(--line); }
 .row:active { background: var(--soft); }
-.row .ic { color: var(--tg-theme-link-color, var(--accent)); }
+.row .ic { color: var(--primary); }
 .row.danger, .row.danger .ic { color: var(--danger); }
 .danger-zone { margin-top: 18px; }
 .note { color: var(--hint); font-size: 13px; margin: 8px 6px 0; }
@@ -259,7 +270,7 @@ input, textarea { font: inherit; color: inherit; }
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
   color: var(--hint); font-size: 11px;
 }
-.tab.on { color: var(--tg-theme-button-color, var(--accent)); font-weight: 600; }
+.tab.on { color: var(--primary); font-weight: 600; }
 
 /* ---------- всплывающие окна снизу ---------- */
 
@@ -335,11 +346,11 @@ textarea.code {
   display: flex; justify-content: center; padding: 12px 0 8px; margin-bottom: 14px;
   background:
     radial-gradient(ellipse 24% 4% at 50% 93%, rgba(0, 0, 0, 0.16), transparent),
-    linear-gradient(180deg, color-mix(in srgb, var(--tg-theme-button-color, var(--accent)) 14%, var(--card)), var(--card));
+    linear-gradient(180deg, color-mix(in srgb, var(--primary) 14%, var(--card)), var(--card));
 }
 .seg-main { margin-bottom: 4px; }
 .seg-main .seg-btn.on, .seg-small .seg-btn.on, .cat-tab.on {
-  background: var(--tg-theme-button-color, var(--accent)); color: var(--tg-theme-button-text-color, #fff);
+  background: var(--primary); color: var(--primary-text);
 }
 .seg-small { margin: 0; padding: 3px; }
 .seg-small .seg-btn { padding: 6px 12px; font-size: 14px; }
@@ -352,7 +363,7 @@ textarea.code {
   width: 30px; height: 30px; border-radius: 50%; background: var(--sw);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
 }
-.swatch.on { box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--tg-theme-button-color, var(--accent)); }
+.swatch.on { box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--primary); }
 
 .cat-tabs {
   display: flex; gap: 6px; overflow-x: auto; margin: 14px -16px 10px; padding: 2px 16px;
@@ -371,7 +382,7 @@ textarea.code {
   border: 2px solid transparent; text-align: center;
 }
 .item:active { transform: scale(.98); }
-.item.on { border-color: var(--tg-theme-button-color, var(--accent)); }
+.item.on { border-color: var(--primary); }
 .item.r-rare { box-shadow: inset 0 -3px 0 #3b82f6; }
 .item.r-legendary { box-shadow: inset 0 -3px 0 #f59e0b, 0 0 14px rgba(245, 158, 11, 0.25); }
 .item-pic { display: block; margin-bottom: 2px; }
@@ -381,14 +392,14 @@ textarea.code {
 .price { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; color: var(--text); font-size: 15px; }
 .badge {
   display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px;
-  background: color-mix(in srgb, var(--tg-theme-button-color, var(--accent)) 16%, transparent);
-  color: var(--tg-theme-button-color, var(--accent));
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
+  color: var(--primary);
 }
 .items-hint { grid-column: 1 / -1; color: var(--hint); font-size: 13px; text-align: center; padding: 8px; }
 
 .try-pic {
   display: flex; justify-content: center; margin: -4px -16px 12px; padding: 12px 0;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--tg-theme-button-color, var(--accent)) 12%, var(--card)), var(--card));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 12%, var(--card)), var(--card));
 }
 .try-pic.r-legendary { background: radial-gradient(circle at 50% 55%, rgba(245, 158, 11, 0.28), var(--card) 65%); }
 .try-pic.r-rare { background: radial-gradient(circle at 50% 55%, rgba(59, 130, 246, 0.2), var(--card) 65%); }
@@ -411,7 +422,7 @@ textarea.code {
   font-size: 12px; font-weight: 600; color: #fff;
   text-shadow: 0 0 2px rgba(0, 0, 0, 0.8), 0 0 1px rgba(0, 0, 0, 0.9);
 }
-.cswatch.on { box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--tg-theme-button-color, var(--accent)); }
+.cswatch.on { box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--primary); }
 .cswatch.locked::after {
   content: ""; position: absolute; inset: 0; border-radius: 10px;
   background: repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.18) 0 3px, transparent 3px 7px);
@@ -439,7 +450,7 @@ textarea.code {
 .quick input::placeholder { color: var(--hint); }
 .quick-add {
   width: 40px; height: 40px; border-radius: 12px; flex: none; display: flex; align-items: center; justify-content: center;
-  background: var(--tg-theme-button-color, var(--accent)); color: var(--tg-theme-button-text-color, #fff);
+  background: var(--primary); color: var(--primary-text);
 }
 .empty.small { padding: 14px 16px; font-size: 14px; }
 .task { display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 14px; }
@@ -456,7 +467,7 @@ textarea.code {
 .task-meta { font-size: 13px; color: var(--hint); font-variant-numeric: tabular-nums; }
 .task-meta.overdue { color: var(--danger); }
 .task-meta.run { font-weight: 600; }
-.task.running { background: color-mix(in srgb, var(--tg-theme-button-color, var(--accent)) 6%, transparent); }
+.task.running { background: color-mix(in srgb, var(--primary) 6%, transparent); }
 .task-acts { display: flex; gap: 6px; flex: none; }
 .task-act {
   width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center;
@@ -507,3 +518,70 @@ textarea.code {
 .coins-sum .kv { padding: 5px 0; }
 .kv-total { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 9px !important; font-weight: 700; }
 .kv-total b { display: inline-flex; align-items: center; gap: 6px; }
+
+/* ---------- фон главного экрана ---------- */
+/* Все фоны нарисованы кодом: градиенты и маленькие SVG-узоры. Полупрозрачные — подходят к обеим темам. */
+
+:root {
+  --bgimg-1: linear-gradient(180deg, rgba(255, 128, 102, 0.30) 0%, rgba(255, 196, 120, 0.16) 40%, transparent 75%);
+  --bgimg-2: linear-gradient(180deg, rgba(56, 132, 255, 0.28) 0%, rgba(32, 201, 186, 0.14) 45%, transparent 80%);
+  --bgimg-3: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='40' shape-rendering='crispEdges'%3E%3Cg fill='%2322a35a' fill-opacity='0.22'%3E%3Crect x='10' y='14' width='4' height='4'/%3E%3Crect x='8' y='18' width='8' height='4'/%3E%3Crect x='6' y='22' width='12' height='4'/%3E%3Crect x='4' y='26' width='16' height='4'/%3E%3Crect x='34' y='20' width='4' height='4'/%3E%3Crect x='32' y='24' width='8' height='4'/%3E%3Crect x='30' y='28' width='12' height='4'/%3E%3C/g%3E%3Cg fill='%237a4a2a' fill-opacity='0.22'%3E%3Crect x='10' y='30' width='4' height='6'/%3E%3Crect x='34' y='32' width='4' height='4'/%3E%3C/g%3E%3C/svg%3E") left 0 bottom 70px / 48px 40px repeat-x,
+    linear-gradient(180deg, rgba(76, 175, 80, 0.22) 0%, rgba(139, 195, 74, 0.10) 50%, rgba(46, 125, 50, 0.18) 100%);
+  --bgimg-4: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' shape-rendering='crispEdges'%3E%3Crect width='12' height='12' fill='%236366f1' fill-opacity='0.07'/%3E%3Crect x='12' y='12' width='12' height='12' fill='%236366f1' fill-opacity='0.07'/%3E%3Crect x='4' y='4' width='4' height='4' fill='%236366f1' fill-opacity='0.10'/%3E%3C/svg%3E");
+  --bgimg-5: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' shape-rendering='crispEdges'%3E%3Cg fill='%23f5c83a'%3E%3Crect x='10' y='12' width='3' height='3' fill-opacity='0.55'/%3E%3Crect x='70' y='8' width='2' height='2' fill-opacity='0.5'/%3E%3Crect x='44' y='40' width='3' height='3' fill-opacity='0.45'/%3E%3Crect x='84' y='58' width='2' height='2' fill-opacity='0.5'/%3E%3Crect x='22' y='70' width='2' height='2' fill-opacity='0.4'/%3E%3Crect x='58' y='84' width='3' height='3' fill-opacity='0.5'/%3E%3Crect x='44' y='37' width='3' height='1' fill-opacity='0.3'/%3E%3C/g%3E%3C/svg%3E"),
+    linear-gradient(180deg, rgba(49, 46, 129, 0.34) 0%, rgba(91, 33, 182, 0.14) 55%, transparent 90%);
+}
+/* Цвет фона — у html, а body прозрачный: так слой с узором (body::before) виден под содержимым. */
+html { background: var(--bg); }
+body { background: transparent !important; }
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+}
+body[data-pf-tab="timer"][data-pf-bg="1"]::before { background: var(--bgimg-1); }
+body[data-pf-tab="timer"][data-pf-bg="2"]::before { background: var(--bgimg-2); }
+body[data-pf-tab="timer"][data-pf-bg="3"]::before { background: var(--bgimg-3); }
+body[data-pf-tab="timer"][data-pf-bg="4"]::before { background: var(--bgimg-4); }
+body[data-pf-tab="timer"][data-pf-bg="5"]::before { background: var(--bgimg-5); }
+
+/* ---------- оформление в настройках ---------- */
+
+.theme-card { display: flex; flex-direction: column; gap: 14px; }
+.theme-card .seg { margin: 0; }
+.set-label { font-size: 14px; color: var(--hint); margin-bottom: 8px; }
+.accents { display: flex; flex-wrap: wrap; gap: 10px; }
+.accent-sw {
+  width: 34px; height: 34px; border-radius: 50%; background: var(--sw);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+  display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: 700;
+}
+.accent-sw.tg { background: conic-gradient(#2aabee, #6366f1, #ec6fae, #f5c83a, #2aabee); }
+.accent-sw.on { box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--text); }
+.bgs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.bg-tile {
+  height: 64px; border-radius: 12px; background-color: var(--bg); position: relative; overflow: hidden;
+  box-shadow: inset 0 0 0 1px var(--line); display: flex; align-items: flex-end; padding: 6px 8px;
+  font-size: 12px; font-weight: 600; color: var(--text);
+}
+.bg-tile::before { content: ""; position: absolute; inset: 0; background: var(--tile); }
+.bg-tile span { position: relative; }
+.bg-tile.on { box-shadow: 0 0 0 2px var(--primary); }
+
+/* ---------- вид графика ---------- */
+
+.chart-types {
+  display: flex; gap: 6px; overflow-x: auto; margin: 0 -16px 12px; padding: 2px 16px; scrollbar-width: none;
+}
+.chart-types::-webkit-scrollbar { display: none; }
+.ct-btn {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px 8px 10px; border-radius: 999px;
+  background: var(--card); font-size: 14px; font-weight: 600; color: var(--hint);
+}
+.ct-btn .ic { width: 18px; height: 18px; }
+.ct-btn.on { background: var(--primary); color: var(--primary-text); }
+.chart .line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .dot { stroke: var(--card); stroke-width: 2; }
+.chart .pie-label { fill: var(--text); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.chart .pie-center { fill: var(--text); font-size: 18px; font-weight: 700; }
+.chart .pie-sub { fill: var(--hint); font-size: 12px; }
+.chart .slice { stroke: var(--card); stroke-width: 2; stroke-linejoin: round; }
+.chart text { pointer-events: none; }
