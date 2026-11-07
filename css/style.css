@@ -859,7 +859,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
   position: relative; overflow: hidden;
   animation: hueDrift 5s ease-in-out infinite;
 }
-.act-btn.on .act-ic::after, .btn-stop::after, .task-act.stop::after, .rec .bar::after, .lg i::after, .tot-name i::after {
+.act-btn.on .act-ic::after, .btn-stop::after, .task-act.stop::after, .rec .bar::after {
   content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
   background: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, 0.55) 50%, transparent 65%);
   background-size: 250% 100%;
@@ -869,3 +869,8 @@ button:active:not(:disabled) { transform: scale(0.96); }
 .act-btn.started .act-ic { animation: iconJump 0.9s var(--spring), ring 1.8s 0.9s ease-out infinite, hueDrift 5s ease-in-out infinite; }
 .current:not(.idle)::before { animation: hueDrift 6s ease-in-out infinite; }
 .chart svg { animation: hueDrift 7s ease-in-out infinite; }
+
+/* Квадратики легенды и итогов — тем же градиентом, что и графики */
+.lg i, .tot-name i {
+  background-image: linear-gradient(170deg, rgba(255, 255, 255, 0.38), transparent 55%, rgba(0, 0, 0, 0.18));
+}

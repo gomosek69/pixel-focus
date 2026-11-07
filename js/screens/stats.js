@@ -287,19 +287,17 @@
   const tipRow = (k, value) =>
     '<div class="tip-row"><i style="background:' + ACTS[k].color + '"></i>' + t(ACTS[k].name) + '<span>' + value + '</span></div>';
 
-  // Переливающаяся заливка: по цвету занятия пробегает светлый блик (градиент со сдвигом).
+  // Заливка градиентом цвета занятия: светлее сверху, насыщеннее снизу.
   let gradN = 0;
   let gid = 'sg0';
   function gradDefs() {
     gid = 'sg' + (++gradN);
     return '<defs>' + ORDER.map((k) => {
       const c = ACTS[k].color;
-      const light = 'color-mix(in srgb, ' + c + ' 55%, #fff)';
-      return '<linearGradient id="' + gid + k + '" x1="0" y1="0" x2="1" y2="0.35">' +
-        '<stop offset="0" style="stop-color:' + c + '"/><stop offset="0.38" style="stop-color:' + c + '"/>' +
-        '<stop offset="0.5" style="stop-color:' + light + '"/><stop offset="0.62" style="stop-color:' + c + '"/>' +
-        '<stop offset="1" style="stop-color:' + c + '"/>' +
-        '<animateTransform attributeName="gradientTransform" type="translate" values="-1.2 0;1.2 0" dur="3.4s" repeatCount="indefinite"/>' +
+      return '<linearGradient id="' + gid + k + '" x1="0" y1="0" x2="0.25" y2="1">' +
+        '<stop offset="0" style="stop-color:color-mix(in srgb, ' + c + ' 62%, #fff)"/>' +
+        '<stop offset="0.55" style="stop-color:' + c + '"/>' +
+        '<stop offset="1" style="stop-color:color-mix(in srgb, ' + c + ' 82%, #000)"/>' +
         '</linearGradient>';
     }).join('') + '</defs>';
   }
