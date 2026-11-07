@@ -41,9 +41,10 @@
           t('Сохраните резервную копию и попросите уплотнить хранение или убрать старые записи в архив. Когда ячейки закончатся, новые записи перестанут сохраняться.') + '</div>'
         : '') +
       '<div class="group-title">Язык · Language</div>' +
-      '<div class="seg seg-main lang-seg">' +
+      '<div class="seg seg-main lang-seg" data-seg="lang">' +
       langBtn('auto', t('Как в Telegram')) + langBtn('ru', 'Русский') + langBtn('en', 'English') +
       '</div>' +
+      appearanceHtml() +
       '<div class="group-title">' + t('Резервная копия') + '</div>' +
       '<div class="card list">' +
       '  <button class="row" data-action="download">' + ui.icon('download') + '<span>' + t('Сохранить в файл') + '</span></button>' +
@@ -63,13 +64,49 @@
       '<div class="card list danger-zone">' +
       '  <button class="row danger" data-action="wipe">' + ui.icon('trash') + '<span>' + t('Удалить все данные') + '</span></button>' +
       '</div>' +
-      '<p class="note center">Pixel Focus · ' + t('этап {0}', 6) + '</p>';
+      '<p class="note center">Pixel Focus · ' + t('версия {0}', window.PF_VERSION || '—') + '</p>';
 
     root.onclick = onClick;
     root.querySelector('#fileIn').addEventListener('change', onFile);
   }
 
+  // Оформление: тема, основной цвет, фон главного экрана.
+  function appearanceHtml() {
+    const pr = store.S.prefs;
+    const isEn = PF.i18n.lang === 'en';
+    const themeBtn = (v, label) =>
+      '<button class="seg-btn' + (pr.theme === v ? ' on' : '') + '" data-theme="' + v + '">' + label + '</button>';
+    const accents =
+      '<button class="accent-sw tg' + (pr.accent === 'auto' ? ' on' : '') + '" data-accent="auto" ' +
+      'aria-label="' + u.esc(t('Как в Telegram')) + '" title="' + u.esc(t('Как в Telegram')) + '"></button>' +
+      PF.ACCENTS.map((a, i) =>
+        '<button class="accent-sw' + (pr.accent === i ? ' on' : '') + '" data-accent="' + i + '" style="--sw:' + a.hex + '" ' +
+        'aria-label="' + u.esc(isEn ? a.en : a.ru) + '" title="' + u.esc(isEn ? a.en : a.ru) + '"></button>').join('');
+    const bgs = PF.BACKGROUNDS.map((name, i) =>
+      '<button class="bg-tile' + ((pr.bg || 0) === i ? ' on' : '') + '" data-bg="' + i + '" style="--tile:' + (i ? 'var(--bgimg-' + i + ')' : 'none') + '">' +
+      '<span>' + t(name) + '</span></button>').join('');
+    return '<div class="group-title">' + t('Оформление') + '</div>' +
+      '<div class="card pad theme-card">' +
+      '  <div><div class="set-label">' + t('Тема') + '</div><div class="seg seg-main" data-seg="theme">' +
+      themeBtn('auto', t('Как в Telegram')) + themeBtn('light', t('Светлая')) + themeBtn('dark', t('Тёмная')) + '</div></div>' +
+      '  <div><div class="set-label">' + t('Стиль интерфейса') + '</div><div class="seg seg-main" data-seg="glass">' +
+      ['liquid', 'frosted'].map((g) =>
+        '<button class="seg-btn' + ((pr.glass || 'liquid') === g ? ' on' : '') + '" data-glassopt="' + g + '">' +
+        (g === 'liquid' ? 'Liquid Glass' : t('Матовое стекло')) + '</button>').join('') + '</div></div>' +
+      '  <div><div class="set-label">' + t('Основной цвет') + '</div><div class="accents">' + accents + '</div></div>' +
+      '  <div><div class="set-label">' + t('Фон главного экрана') + '</div><div class="bgs">' + bgs + '</div></div>' +
+      '</div>';
+  }
+
   async function onClick(e) {
+    const th = e.target.closest('[data-theme]');
+    if (th && th.classList.contains('seg-btn')) { store.setPref('theme', th.dataset.theme); ui.haptic('light'); return; }
+    const gl = e.target.closest('[data-glassopt]');
+    if (gl) { store.setPref('glass', gl.dataset.glassopt); ui.haptic('light'); return; }
+    const ac = e.target.closest('.accent-sw[data-accent]');
+    if (ac) { store.setPref('accent', ac.dataset.accent === 'auto' ? 'auto' : Number(ac.dataset.accent)); ui.haptic('light'); return; }
+    const bgb = e.target.closest('.bg-tile[data-bg]');
+    if (bgb) { store.setPref('bg', Number(bgb.dataset.bg)); ui.haptic('light'); return; }
     const langBtn = e.target.closest('[data-lang]');
     if (langBtn) {
       store.setPref('lang', langBtn.dataset.lang);

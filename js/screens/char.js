@@ -21,7 +21,7 @@
       '<header class="top top-row"><h1>' + t('Персонаж') + '</h1>' +
       '  <button class="balance' + (Math.round(b) < 0 ? ' neg' : '') + '" data-action="rates">' + ui.coin() + '<span>' + u.coins(b) + '</span></button></header>' +
       '<div class="card char-stage">' + C.svg(store.look(), 224) + '</div>' +
-      '<div class="seg seg-main">' +
+      '<div class="seg seg-main" data-seg="char-mode">' +
       '  <button class="seg-btn' + (mode === 'wardrobe' ? ' on' : '') + '" data-mode="wardrobe">' + t('Гардероб') + '</button>' +
       '  <button class="seg-btn' + (mode === 'shop' ? ' on' : '') + '" data-mode="shop">' + t('Магазин') + '</button>' +
       '</div>' +
@@ -45,7 +45,7 @@
     const ch = store.S.char;
     return '<div class="group-title">' + t('Внешность') + '</div>' +
       '<div class="card pad look">' +
-      '  <div class="look-row"><span>' + t('Пол') + '</span><div class="seg seg-small">' +
+      '  <div class="look-row"><span>' + t('Пол') + '</span><div class="seg seg-small" data-seg="gender">' +
       '    <button class="seg-btn' + (ch.g === 'm' ? ' on' : '') + '" data-look="g" data-val="m">' + t('Мужской') + '</button>' +
       '    <button class="seg-btn' + (ch.g === 'f' ? ' on' : '') + '" data-look="g" data-val="f">' + t('Женский') + '</button></div></div>' +
       '  <div class="look-row"><span>' + t('Кожа') + '</span>' + swatches('skin', C.SKINS) + '</div>' +
@@ -113,6 +113,7 @@
           ui.haptic('success');
           api.close();
           ui.toast(t('Цвет куплен: {0}', C.colorName(idx)));
+          hop();
         });
       },
     });
@@ -184,6 +185,14 @@
     }
   }
 
+  // Персонаж подпрыгивает (после покупки или смены вещи).
+  function hop() {
+    const st = root && root.querySelector('.char-stage');
+    if (!st) return;
+    st.classList.remove('hop'); void st.offsetWidth; st.classList.add('hop');
+    setTimeout(() => st.classList.remove('hop'), 700);
+  }
+
   function onWardrobe(id) {
     if (id === 'none') { store.unequip('acc'); return; }
     const it = C.byId[id];
@@ -194,6 +203,7 @@
     } else {
       store.equip(id);
     }
+    hop();
     ui.haptic('light');
   }
 
@@ -233,6 +243,7 @@
           ui.haptic('success');
           api.close();
           ui.toast(t('Куплено и надето: {0}', C.itemName(it)));
+          hop();
         });
       },
     });

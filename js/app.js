@@ -28,36 +28,112 @@
       if (tg.isVersionAtLeast('6.1')) {
         tg.BackButton.onClick(() => PF.ui.closeTopSheet());
       }
-      const applyScheme = () => {
-        document.documentElement.dataset.scheme = tg.colorScheme || 'light';
-      };
-      applyScheme();
-      tg.onEvent('themeChanged', applyScheme);
+      document.documentElement.dataset.scheme = tg.colorScheme || 'light';
+      tg.onEvent('themeChanged', () => applyTheme());
     } catch (e) {
       console.warn('Telegram setup', e);
     }
   }
 
-  function renderTabbar() {
-    const nav = document.getElementById('tabbar');
-    nav.innerHTML = TABS.map((t) =>
-      '<button class="tab' + (t.id === current ? ' on' : '') + '" data-tab="' + t.id + '">' +
-      PF.ui.icon(t.icon) + '<span>' + PF.t(t.label) + '</span></button>').join('');
+  // Применить тему, основной цвет и фон из настроек.
+  function applyTheme() {
+    const root = document.documentElement;
+    const pr = PF.store.S.prefs;
+    const tg = PF.tg;
+    if (pr.theme === 'auto') {
+      delete root.dataset.theme;
+      if (tg) root.dataset.scheme = tg.colorScheme || 'light';
+      else delete root.dataset.scheme;
+    } else {
+      root.dataset.theme = pr.theme;
+      root.dataset.scheme = pr.theme;
+    }
+    const acc = pr.accent === 'auto' ? null : PF.ACCENTS[pr.accent];
+    if (acc) {
+      root.style.setProperty('--primary', acc.hex);
+      root.style.setProperty('--primary-text', '#fff');
+    } else {
+      root.style.removeProperty('--primary');
+      root.style.removeProperty('--primary-text');
+    }
+    document.body.dataset.pfBg = String(pr.bg || 0);
+    root.dataset.glass = pr.glass || 'liquid';
+    // Подкрасить шапку и фон Telegram под выбранную тему.
+    if (tg && tg.isVersionAtLeast) {
+      try {
+        const bg = getComputedStyle(document.documentElement).backgroundColor;
+        const m = bg.match(/\d+/g);
+        const hex = m ? '#' + m.slice(0, 3).map((x) => Number(x).toString(16).padStart(2, '0')).join('') : null;
+        if (pr.theme === 'auto') {
+          if (tg.isVersionAtLeast('6.1')) { tg.setHeaderColor('secondary_bg_color'); tg.setBackgroundColor('secondary_bg_color'); }
+        } else if (hex) {
+          if (tg.isVersionAtLeast('6.9')) tg.setHeaderColor(hex);
+          if (tg.isVersionAtLeast('6.1')) tg.setBackgroundColor(hex);
+          if (tg.isVersionAtLeast('7.10') && tg.setBottomBarColor) tg.setBottomBarColor(hex);
+        }
+      } catch (e) { /* не важно */ }
+    }
   }
 
-  function renderScreen() {
+  // Нижняя панель. Плашка под активной вкладкой плавно переезжает к новой.
+  let tabIndPos = null;
+  function renderTabbar() {
+    const nav = document.getElementById('tabbar');
+    nav.innerHTML = '<span class="tab-ind"></span>' + TABS.map((t) =>
+      '<button class="tab' + (t.id === current ? ' on' : '') + '" data-tab="' + t.id + '">' +
+      PF.ui.icon(t.icon) + '<span>' + PF.t(t.label) + '</span></button>').join('');
+    const ind = nav.querySelector('.tab-ind');
+    const on = nav.querySelector('.tab.on');
+    if (!on) return;
+    const x = on.offsetLeft + 4, w = on.offsetWidth - 8;
+    if (tabIndPos) {
+      ind.style.transition = 'none';
+      ind.style.transform = 'translateX(' + tabIndPos.x + 'px)';
+      ind.style.width = tabIndPos.w + 'px';
+      void ind.offsetWidth;
+      ind.style.transition = '';
+    }
+    ind.style.transform = 'translateX(' + x + 'px)';
+    ind.style.width = w + 'px';
+    tabIndPos = { x, w };
+  }
+
+  // anim: 'fwd' | 'back' — сдвиг экрана при переходе между вкладками.
+  function renderScreen(anim) {
     const el = document.getElementById('screen');
+    document.body.dataset.pfTab = current;
     PF.screens[current].render(el);
+    if (anim) {
+      el.classList.remove('anim-fwd', 'anim-back');
+      void el.offsetWidth;
+      el.classList.add('anim-' + anim);
+      el.addEventListener('animationend', function done(e) {
+        if (e.target !== el) return;
+        el.classList.remove('anim-fwd', 'anim-back');
+        el.removeEventListener('animationend', done);
+      });
+    }
+    PF.ui.segs(el);
   }
 
   function switchTab(id) {
     if (!PF.screens[id] || id === current) return;
+    const from = TABS.findIndex((x) => x.id === current);
+    const to = TABS.findIndex((x) => x.id === id);
     current = id;
     if (PF.screens.timer.reset) PF.screens.timer.reset();
     renderTabbar();
-    renderScreen();
     window.scrollTo(0, 0);
+    renderScreen(to > from ? 'fwd' : 'back');
     PF.ui.haptic('light');
+  }
+
+  // Плавная смена цветов при смене темы / цвета / стиля.
+  function animateTheme() {
+    const root = document.documentElement;
+    root.classList.add('theme-anim');
+    clearTimeout(animateTheme.t);
+    animateTheme.t = setTimeout(() => root.classList.remove('theme-anim'), 500);
   }
 
   function checkAsk() {
@@ -89,8 +165,23 @@
     document.getElementById('app').hidden = false;
 
     lastDay = PF.u.dayKey(PF.u.nowSec());
+    // Любая перерисовка экрана (в том числе изнутри вкладки) — расставить плашки переключателей.
+    let segsQueued = false;
+    new MutationObserver(() => {
+      if (segsQueued) return;
+      segsQueued = true;
+      requestAnimationFrame(() => { segsQueued = false; PF.ui.segs(document.getElementById('screen')); });
+    }).observe(document.getElementById('screen'), { childList: true, subtree: true });
+
+    // Слой с цветными пятнами позади интерфейса (для эффекта стекла).
+    if (!document.getElementById('ambient')) {
+      const amb = document.createElement('div');
+      amb.id = 'ambient';
+      document.body.prepend(amb);
+    }
+    applyTheme();
     renderTabbar();
-    renderScreen();
+    renderScreen('fwd');
 
     document.getElementById('tabbar').addEventListener('click', (e) => {
       const b = e.target.closest('[data-tab]');
@@ -100,6 +191,9 @@
     PF.store.on((type, payload) => {
       if (type === 'lang') {
         renderTabbar();
+      } else if (type === 'theme') {
+        animateTheme();
+        applyTheme();
       } else if (type === 'change') {
         // Перерисовываем текущую вкладку (формы во всплывающих окнах не трогаются).
         renderScreen();

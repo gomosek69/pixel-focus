@@ -8,6 +8,10 @@
     rest: '<path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><path d="M6 1v3M10 1v3M14 1v3"/>',
     timer: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/>',
     stats: '<path d="M18 20V10M12 20V4M6 20v-6"/>',
+    percent: '<path d="M19 5L5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/>',
+    pie: '<path d="M21 12a9 9 0 1 1-9-9v9z"/><path d="M15 3.6A9 9 0 0 1 20.4 9H15z"/>',
+    lines: '<path d="M3 17c3-5 5-8 8-5s5 2 10-7"/>',
+    area: '<path d="M3 20l6-7 4 3 8-10v14z"/>',
     char: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
     tasks: '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
     settings: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
@@ -52,6 +56,49 @@
     return '<svg class="coin ' + (cls || '') + '" viewBox="0 0 10 10" shape-rendering="crispEdges" aria-hidden="true">' + coinSvgInner + '</svg>';
   }
 
+  // ---------- скользящий индикатор переключателей ----------
+  // У каждого .seg есть плашка .seg-ind под выбранной кнопкой. При перерисовке экрана
+  // плашка ставится на старое место (запомненное по data-seg) и плавно едет к новому.
+  const segMem = {};
+  function segs(scope) {
+    (scope || document).querySelectorAll('.seg').forEach((seg) => {
+      let ind = seg.querySelector(':scope > .seg-ind');
+      if (!ind) {
+        ind = document.createElement('span');
+        ind.className = 'seg-ind';
+        seg.prepend(ind);
+      }
+      const on = seg.querySelector(':scope > .seg-btn.on');
+      if (!on) { ind.style.opacity = '0'; return; }
+      const key = seg.dataset.seg || '';
+      const x = on.offsetLeft, w = on.offsetWidth;
+      const col = getComputedStyle(on).getPropertyValue('--c').trim();
+      ind.style.backgroundColor = col || '';
+      ind.style.top = on.offsetTop + 'px';
+      ind.style.height = on.offsetHeight + 'px';
+      const prev = key ? segMem[key] : null;
+      const fresh = !ind.dataset.ready;
+      if (fresh && prev && (prev.x !== x || prev.w !== w)) {
+        ind.style.transition = 'none';
+        ind.style.transform = 'translateX(' + prev.x + 'px)';
+        ind.style.width = prev.w + 'px';
+        void ind.offsetWidth; // зафиксировать старое положение
+        ind.style.transition = '';
+      } else if (fresh) {
+        ind.style.transition = 'none';
+        ind.style.transform = 'translateX(' + x + 'px)';
+        ind.style.width = w + 'px';
+        void ind.offsetWidth;
+        ind.style.transition = '';
+      }
+      ind.dataset.ready = '1';
+      ind.style.transform = 'translateX(' + x + 'px)';
+      ind.style.width = w + 'px';
+      ind.style.opacity = '1';
+      if (key) segMem[key] = { x, w };
+    });
+  }
+
   // ---------- нижние всплывающие окна (sheet) ----------
 
   const stack = [];
@@ -93,6 +140,7 @@
     stack.push(api);
     syncBackButton();
     if (opts.onMount) opts.onMount(api.el, api);
+    requestAnimationFrame(() => segs(api.el));
     return api;
   }
 
@@ -154,5 +202,5 @@
     } catch (e) { /* не важно */ }
   }
 
-  PF.ui = { icon, coin, openSheet, closeTopSheet, hasOpenSheet, confirm, toast, haptic };
+  PF.ui = { icon, coin, segs, openSheet, closeTopSheet, hasOpenSheet, confirm, toast, haptic };
 })(window.PF);

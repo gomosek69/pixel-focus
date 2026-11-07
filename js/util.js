@@ -25,6 +25,20 @@ window.PF = window.PF || {};
   };
   PF.ACT_ORDER = ['work', 'study', 'rest'];
 
+  // Основные цвета приложения на выбор (Настройки → Оформление).
+  PF.ACCENTS = [
+    { ru: 'Индиго', en: 'Indigo', hex: '#6366f1' },
+    { ru: 'Синий', en: 'Blue', hex: '#2563eb' },
+    { ru: 'Бирюзовый', en: 'Teal', hex: '#0d9488' },
+    { ru: 'Зелёный', en: 'Green', hex: '#16a34a' },
+    { ru: 'Оранжевый', en: 'Orange', hex: '#ea580c' },
+    { ru: 'Розовый', en: 'Pink', hex: '#db2777' },
+    { ru: 'Красный', en: 'Red', hex: '#dc2626' },
+    { ru: 'Фиолетовый', en: 'Purple', hex: '#7c3aed' },
+  ];
+  // Фоны главного экрана (рисуются в CSS: --bgimg-N).
+  PF.BACKGROUNDS = ['Обычный', 'Рассвет', 'Океан', 'Лес', 'Пиксели', 'Звёзды'];
+
   const toDate = (sec) => new Date(sec * 1000);
 
   PF.u = {

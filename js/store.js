@@ -24,7 +24,28 @@
   const START_BALANCE = 0;      // стартовый баланс
   const KEYS_WARN = 800;        // с этого числа ячеек облака показываем предупреждение
 
-  const S = { records: [], active: null, char: null, prefs: { lang: 'auto' }, tasks: [] };
+  const S = { records: [], active: null, char: null, prefs: defaultPrefs(), tasks: [] };
+
+  // Настройки по умолчанию.
+  // lang: auto|ru|en; theme: auto|light|dark; accent: 'auto' или номер цвета; bg: номер фона; chart: вид графика.
+  const PREF_RULES = {
+    lang: (v) => ['auto', 'ru', 'en'].includes(v),
+    theme: (v) => ['auto', 'light', 'dark'].includes(v),
+    accent: (v) => v === 'auto' || (Number.isInteger(v) && v >= 0 && v < 16),
+    bg: (v) => Number.isInteger(v) && v >= 0 && v < 16,
+    chart: (v) => ['bars', 'percent', 'pie', 'lines', 'cumulative'].includes(v),
+    glass: (v) => ['liquid', 'frosted'].includes(v),
+  };
+  function defaultPrefs() {
+    return { lang: 'auto', theme: 'auto', accent: 'auto', bg: 0, chart: 'bars', glass: 'liquid' };
+  }
+  function sanitizePrefs(pr) {
+    const out = defaultPrefs();
+    if (pr && typeof pr === 'object') {
+      Object.keys(PREF_RULES).forEach((k) => { if (PREF_RULES[k](pr[k])) out[k] = pr[k]; });
+    }
+    return out;
+  }
 
   // Персонаж по умолчанию: внешность, надетые вещи и список покупок [[id, цена, время]].
   function defaultChar() {
@@ -124,8 +145,7 @@
     S.active = null;
     S.char = sanitizeChar(loaded.char);
     S.tasks = (Array.isArray(loaded.tasks) ? loaded.tasks : []).map(decodeTask).filter(Boolean);
-    const pr = loaded.prefs || {};
-    S.prefs = { lang: ['auto', 'ru', 'en'].includes(pr.lang) ? pr.lang : 'auto' };
+    S.prefs = sanitizePrefs(loaded.prefs);
     if (PF.i18n) PF.i18n.setLang(S.prefs.lang);
     Object.keys(loaded).forEach((name) => {
       if (!name.startsWith('rec_') || !Array.isArray(loaded[name])) return;
@@ -393,14 +413,16 @@
 
   // Настройки приложения (язык; позже — тема и цвета).
   function setPref(key, value) {
+    if (!PREF_RULES[key] || !PREF_RULES[key](value)) return;
+    S.prefs[key] = value;
+    dirty.add('prefs');
     if (key === 'lang') {
-      if (!['auto', 'ru', 'en'].includes(value)) return;
-      S.prefs.lang = value;
       PF.i18n.setLang(value);
-      dirty.add('prefs');
       emit('lang');
-      changed();
+    } else if (key === 'theme' || key === 'accent' || key === 'bg' || key === 'glass') {
+      emit('theme');
     }
+    changed();
   }
 
   function setLook(field, value) {
