@@ -119,6 +119,9 @@
 
     setInterval(tick, 1000);
     if (PF.migratedNotice) PF.ui.toast(PF.migratedNotice, true);
+    else if (PF.store.storageNearlyFull()) {
+      PF.ui.toast('Облако Telegram почти заполнено (' + PF.store.keyCount() + ' из 1024). Подробности в Настройках.', true);
+    }
     checkAsk();
   }
 
