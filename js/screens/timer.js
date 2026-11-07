@@ -53,22 +53,29 @@
     const a = store.S.active;
     if (!a) {
       box.innerHTML =
-        '<div class="card current idle">' +
+        '<div class="card current idle"><div class="cur-body">' +
         '<div class="cur-idle">Сейчас ничего не идёт</div>' +
-        '<div class="hint">Нажмите на занятие, чтобы начать</div></div>';
+        '<div class="hint">Нажмите на занятие, чтобы начать</div></div>' + charHtml() + '</div>';
       return;
     }
     const act = ACTS[a.a];
     box.innerHTML =
       '<div class="card current" style="--c:' + act.color + '">' +
+      '<div class="cur-row"><div class="cur-body">' +
       '  <div class="cur-top"><span class="dot"></span><span class="cur-name">' + act.name + '</span>' +
       '    <span class="cur-since">с ' + u.hm(a.s) +
       (u.dayKey(a.s) !== u.dayKey(u.nowSec()) ? ', ' + u.shortDate(a.s) : '') + '</span></div>' +
       (a.t ? '<div class="cur-task">' + esc(a.t) + '</div>' : '') +
       '  <div class="cur-time" id="curTime">' + u.durClock(u.nowSec() - a.s) + '</div>' +
       '  <div class="cur-coins" id="curCoins">' + ui.coin() + '<span>' + sessionCoinsText() + '</span></div>' +
+      '</div>' + charHtml() + '</div>' +
       '  <button class="btn btn-stop" data-action="stop">' + ui.icon('stop') + 'Завершить</button>' +
       '</div>';
+  }
+
+  // Маленький персонаж на главном экране (нажатие открывает вкладку «Персонаж»).
+  function charHtml() {
+    return '<button class="cur-char" data-action="char" aria-label="Персонаж">' + PF.char.svg(store.look(), 96) + '</button>';
   }
 
   function renderActs() {
@@ -157,6 +164,8 @@
     } else if (action === 'edit') {
       const r = store.S.records.find((x) => x.id === btn.dataset.id);
       if (r) openForm(r);
+    } else if (action === 'char') {
+      if (PF.app) PF.app.switchTab('char');
     } else if (action === 'rates') {
       openRates();
     } else if (action === 'more') {
@@ -366,4 +375,5 @@
     reset() { daysShown = PAGE_DAYS; },
   };
   PF.askStill = askStill;
+  PF.openRates = openRates;
 })(window.PF);

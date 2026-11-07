@@ -23,7 +23,17 @@
   const START_BALANCE = 0;      // стартовый баланс
   const KEYS_WARN = 800;        // с этого числа ячеек облака показываем предупреждение
 
-  const S = { records: [], active: null };
+  const S = { records: [], active: null, char: null };
+
+  // Персонаж по умолчанию: внешность, надетые вещи и список покупок [[id, цена, время]].
+  function defaultChar() {
+    return {
+      g: 'm', skin: 1, eyes: 0, hc: 1,
+      eq: { hair: 'hair_short', top: 'top_tee', pants: 'pants_jeans', shoes: 'shoes_keds', acc: null },
+      buy: [],
+    };
+  }
+  S.char = defaultChar();
   let docs = null;
   const dirty = new Set();
   let flushTimer = null;
@@ -82,7 +92,11 @@
     chain = chain
       .then(() => {
         const payload = {};
-        names.forEach((n) => { payload[n] = n === 'state' ? stateDoc() : monthDoc(n); });
+        names.forEach((n) => {
+          if (n === 'state') payload[n] = stateDoc();
+          else if (n === 'char') payload[n] = S.char;
+          else payload[n] = monthDoc(n);
+        });
         return docs.writeDocs(payload);
       })
       .then(() => emit('saved'))
@@ -104,6 +118,7 @@
   function applyDocs(loaded) {
     S.records = [];
     S.active = null;
+    S.char = sanitizeChar(loaded.char);
     Object.keys(loaded).forEach((name) => {
       if (!name.startsWith('rec_') || !Array.isArray(loaded[name])) return;
       loaded[name].forEach((arr) => {
@@ -283,6 +298,110 @@
     return [...map.values()];
   }
 
+  // ---------- персонаж ----------
+
+  const intIn = (v, max, def) => (Number.isInteger(v) && v >= 0 && v <= max ? v : def);
+
+  // Проверить данные персонажа (из хранилища или резервной копии).
+  function sanitizeChar(ch) {
+    const d = defaultChar();
+    if (!ch || typeof ch !== 'object') return d;
+    const out = {
+      g: ch.g === 'f' ? 'f' : 'm',
+      skin: intIn(ch.skin, 5, d.skin),
+      eyes: intIn(ch.eyes, 5, d.eyes),
+      hc: intIn(ch.hc, 5, d.hc),
+      eq: Object.assign({}, d.eq),
+      buy: [],
+    };
+    (Array.isArray(ch.buy) ? ch.buy : []).forEach((b) => {
+      if (Array.isArray(b) && typeof b[0] === 'string' && Number.isFinite(b[1]) && b[1] >= 0 &&
+          !out.buy.some((x) => x[0] === b[0])) {
+        out.buy.push([b[0], b[1], Number.isFinite(b[2]) ? b[2] : 0]);
+      }
+    });
+    if (ch.eq && typeof ch.eq === 'object') {
+      Object.keys(out.eq).forEach((cat) => {
+        const id = ch.eq[cat];
+        if (id === null && cat === 'acc') out.eq.acc = null;
+        else if (typeof id === 'string') out.eq[cat] = id;
+      });
+    }
+    return out;
+  }
+
+  const item = (id) => (PF.char ? PF.char.byId[id] : null);
+  const owns = (id) => {
+    const it = item(id);
+    return !!it && (it.rarity === 'base' || S.char.buy.some((b) => b[0] === id));
+  };
+  const spent = () => S.char.buy.reduce((sum, b) => sum + b[1], 0);
+
+  // Что сейчас надето (с проверкой: только свои существующие вещи).
+  function equipped() {
+    const eq = {};
+    Object.keys(S.char.eq).forEach((cat) => {
+      const id = S.char.eq[cat];
+      const it = item(id);
+      eq[cat] = it && it.cat === cat && owns(id) ? id : PF.char.BASE[cat];
+    });
+    return eq;
+  }
+
+  function look(override) {
+    const eq = equipped();
+    if (override) Object.assign(eq, override);
+    return { g: S.char.g, skin: S.char.skin, eyes: S.char.eyes, hc: S.char.hc, eq };
+  }
+
+  function charChanged() {
+    dirty.add('char');
+    changed();
+  }
+
+  function setLook(field, value) {
+    if (field === 'g') S.char.g = value === 'f' ? 'f' : 'm';
+    else if (field === 'skin' || field === 'eyes' || field === 'hc') S.char[field] = intIn(value, 5, S.char[field]);
+    else return;
+    charChanged();
+  }
+
+  // Почему нельзя купить (или null, если можно).
+  function cantBuy(id) {
+    const it = item(id);
+    if (!it || it.rarity === 'base') return 'Эту вещь нельзя купить.';
+    if (owns(id)) return 'Уже куплено.';
+    const bal = Math.round(balance());
+    if (bal < 0) return 'Баланс отрицательный — покупки недоступны.';
+    if (bal < it.price) return 'Не хватает ' + (it.price - bal).toLocaleString('ru-RU') + ' мон.';
+    return null;
+  }
+
+  // Купить и сразу надеть. Возвращает текст ошибки или null.
+  function buy(id) {
+    const err = cantBuy(id);
+    if (err) return err;
+    const it = item(id);
+    S.char.buy.push([id, it.price, u.nowSec()]);
+    S.char.eq[it.cat] = id;
+    charChanged();
+    return null;
+  }
+
+  function equip(id) {
+    const it = item(id);
+    if (!it || !owns(id)) return;
+    S.char.eq[it.cat] = id;
+    charChanged();
+  }
+
+  // Снять вещь: аксессуар просто снимается, остальное заменяется базовой вещью.
+  function unequip(cat) {
+    if (cat === 'hair') return;
+    S.char.eq[cat] = PF.char.BASE[cat];
+    charChanged();
+  }
+
   // ---------- монеты ----------
   // Баланс нигде не хранится: он всегда считается заново из записей,
   // поэтому правка и удаление записей сразу его пересчитывают.
@@ -298,7 +417,7 @@
   }
 
   function balance() {
-    let sum = START_BALANCE;
+    let sum = START_BALANCE - spent();
     for (const r of S.records) sum += recCoins(r);
     return sum + activeCoins();
   }
@@ -313,6 +432,7 @@
       data: {
         records: S.records.map((r) => Object.assign({}, r)),
         active: S.active ? Object.assign({}, S.active) : null,
+        char: JSON.parse(JSON.stringify(S.char)),
       },
     };
   }
@@ -339,13 +459,14 @@
       active = { a: a.a, s: Math.floor(a.s), ask: Number.isFinite(a.ask) ? a.ask : a.s + ASK_FIRST };
       if (a.t) active.t = String(a.t).slice(0, 200);
     }
-    return { records, active, exportedAt: obj.exportedAt };
+    return { records, active, char: sanitizeChar(obj.data.char), exportedAt: obj.exportedAt };
   }
 
   function markAllDocs() {
     docs.names().forEach((n) => dirty.add(n));
     S.records.forEach(markRec);
     markState();
+    dirty.add('char');
   }
 
   // Заменить все данные данными из копии.
@@ -353,6 +474,7 @@
     markAllDocs(); // старые месяцы — чтобы удалить лишнее
     S.records = parsed.records.slice();
     S.active = parsed.active;
+    S.char = parsed.char || defaultChar();
     sortRecs();
     markAllDocs();
     changed();
@@ -363,6 +485,7 @@
     markAllDocs();
     S.records = [];
     S.active = null;
+    S.char = defaultChar();
     changed();
     return flush();
   }
@@ -382,6 +505,15 @@
     recCoins,
     activeCoins,
     balance,
+    spent,
+    owns,
+    equipped,
+    look,
+    setLook,
+    cantBuy,
+    buy,
+    equip,
+    unequip,
     start,
     stop,
     confirmStill,
