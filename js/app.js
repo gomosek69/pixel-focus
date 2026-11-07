@@ -3,7 +3,7 @@
   'use strict';
 
   const TABS = [
-    { id: 'timer', label: 'Таймер', icon: 'timer' },
+    { id: 'timer', label: 'Таймер', icon: 'timer' }, // подписи переводятся при отрисовке
     { id: 'stats', label: 'Статистика', icon: 'stats' },
     { id: 'char', label: 'Персонаж', icon: 'char' },
     { id: 'tasks', label: 'Задачи', icon: 'tasks' },
@@ -42,7 +42,7 @@
     const nav = document.getElementById('tabbar');
     nav.innerHTML = TABS.map((t) =>
       '<button class="tab' + (t.id === current ? ' on' : '') + '" data-tab="' + t.id + '">' +
-      PF.ui.icon(t.icon) + '<span>' + t.label + '</span></button>').join('');
+      PF.ui.icon(t.icon) + '<span>' + PF.t(t.label) + '</span></button>').join('');
   }
 
   function renderScreen() {
@@ -82,7 +82,7 @@
       await PF.store.init();
     } catch (e) {
       console.error(e);
-      document.getElementById('loading').textContent = 'Не удалось загрузить данные: ' + e.message;
+      document.getElementById('loading').textContent = PF.t('Не удалось загрузить данные: {0}', e.message);
       return;
     }
     document.getElementById('loading').remove();
@@ -98,14 +98,16 @@
     });
 
     PF.store.on((type, payload) => {
-      if (type === 'change') {
+      if (type === 'lang') {
+        renderTabbar();
+      } else if (type === 'change') {
         // Перерисовываем текущую вкладку (формы во всплывающих окнах не трогаются).
         renderScreen();
       } else if (type === 'saveError') {
         if (payload && payload.code === 'LIMIT') {
-          PF.ui.toast('Облачное хранилище Telegram заполнено. Сохраните резервную копию.', true);
+          PF.ui.toast(PF.t('Облачное хранилище Telegram заполнено. Сохраните резервную копию.'), true);
         } else {
-          PF.ui.toast('Не удалось сохранить данные. Проверьте интернет.', true);
+          PF.ui.toast(PF.t('Не удалось сохранить данные. Проверьте интернет.'), true);
         }
       }
     });
@@ -118,9 +120,9 @@
     window.addEventListener('pagehide', () => PF.store.flush());
 
     setInterval(tick, 1000);
-    if (PF.migratedNotice) PF.ui.toast(PF.migratedNotice, true);
+    if (PF.migratedNotice) PF.ui.toast(PF.t(PF.migratedNotice), true);
     else if (PF.store.storageNearlyFull()) {
-      PF.ui.toast('Облако Telegram почти заполнено (' + PF.store.keyCount() + ' из 1024). Подробности в Настройках.', true);
+      PF.ui.toast(PF.t('Облако Telegram почти заполнено ({0} из 1024). Подробности в Настройках.', PF.store.keyCount()), true);
     }
     checkAsk();
   }

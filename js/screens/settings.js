@@ -1,18 +1,19 @@
-// Вкладка «Настройки». Пока — резервная копия и сведения о хранилище.
+// Вкладка «Настройки»: язык, резервная копия, сведения о хранилище.
 (function (PF) {
   'use strict';
 
   const u = PF.u;
   const ui = PF.ui;
   const store = PF.store;
+  const t = PF.t;
 
   let root = null;
 
   // Короткая техническая справка: где запущено приложение.
   function tgInfo() {
     const tg = window.Telegram && window.Telegram.WebApp;
-    if (!tg || !tg.platform || tg.platform === 'unknown') return 'не обнаружен';
-    return tg.platform + ', версия ' + tg.version + (tg.initData ? '' : ', без данных запуска');
+    if (!tg || !tg.platform || tg.platform === 'unknown') return t('не обнаружен');
+    return t('{0}, версия {1}', tg.platform, tg.version) + (tg.initData ? '' : ', ' + t('без данных запуска'));
   }
 
   function backupFileName() {
@@ -27,43 +28,54 @@
     root = el;
     const cloud = store.backendName === 'cloud';
     const where = cloud
-      ? 'В облаке Telegram. Данные доступны на всех ваших устройствах, где открыт этот бот.'
-      : 'В памяти этого браузера. Если очистить данные браузера, записи пропадут — делайте резервные копии.';
+      ? t('В облаке Telegram. Данные доступны на всех ваших устройствах, где открыт этот бот.')
+      : t('В памяти этого браузера. Если очистить данные браузера, записи пропадут — делайте резервные копии.');
+    const lang = store.S.prefs.lang;
+    const langBtn = (v, label) =>
+      '<button class="seg-btn' + (lang === v ? ' on' : '') + '" data-lang="' + v + '">' + label + '</button>';
     root.innerHTML =
-      '<header class="top"><h1>Настройки</h1></header>' +
-      (PF.storageWarning ? '<div class="card warn">' + u.esc(PF.storageWarning) + '</div>' : '') +
+      '<header class="top"><h1>' + t('Настройки') + '</h1></header>' +
+      (PF.storageWarning ? '<div class="card warn">' + u.esc(t(PF.storageWarning)) + '</div>' : '') +
       (store.storageNearlyFull()
-        ? '<div class="card warn"><b>Облако Telegram почти заполнено: ' + store.keyCount() + ' из 1024 ячеек.</b><br>' +
-          'Сохраните резервную копию и попросите уплотнить хранение или убрать старые записи в архив. ' +
-          'Когда ячейки закончатся, новые записи перестанут сохраняться.</div>'
+        ? '<div class="card warn"><b>' + t('Облако Telegram почти заполнено: {0} из 1024 ячеек.', store.keyCount()) + '</b><br>' +
+          t('Сохраните резервную копию и попросите уплотнить хранение или убрать старые записи в архив. Когда ячейки закончатся, новые записи перестанут сохраняться.') + '</div>'
         : '') +
-      '<div class="group-title">Резервная копия</div>' +
-      '<div class="card list">' +
-      '  <button class="row" data-action="download">' + ui.icon('download') + '<span>Сохранить в файл</span></button>' +
-      '  <button class="row" data-action="copy">' + ui.icon('copy') + '<span>Скопировать как текст</span></button>' +
-      '  <button class="row" data-action="upload">' + ui.icon('upload') + '<span>Загрузить из файла</span></button>' +
-      '  <button class="row" data-action="paste">' + ui.icon('paste') + '<span>Загрузить из текста</span></button>' +
+      '<div class="group-title">Язык · Language</div>' +
+      '<div class="seg seg-main lang-seg">' +
+      langBtn('auto', t('Как в Telegram')) + langBtn('ru', 'Русский') + langBtn('en', 'English') +
       '</div>' +
-      '<p class="note">Если в Telegram файл не сохраняется, нажмите «Скопировать как текст» и отправьте текст себе в «Избранное». ' +
-      'Загрузка копии заменяет все текущие данные.</p>' +
+      '<div class="group-title">' + t('Резервная копия') + '</div>' +
+      '<div class="card list">' +
+      '  <button class="row" data-action="download">' + ui.icon('download') + '<span>' + t('Сохранить в файл') + '</span></button>' +
+      '  <button class="row" data-action="copy">' + ui.icon('copy') + '<span>' + t('Скопировать как текст') + '</span></button>' +
+      '  <button class="row" data-action="upload">' + ui.icon('upload') + '<span>' + t('Загрузить из файла') + '</span></button>' +
+      '  <button class="row" data-action="paste">' + ui.icon('paste') + '<span>' + t('Загрузить из текста') + '</span></button>' +
+      '</div>' +
+      '<p class="note">' + t('Если в Telegram файл не сохраняется, нажмите «Скопировать как текст» и отправьте текст себе в «Избранное». Загрузка копии заменяет все текущие данные.') + '</p>' +
       '<input type="file" id="fileIn" accept=".json,application/json,text/plain" hidden>' +
-      '<div class="group-title">Хранилище</div>' +
+      '<div class="group-title">' + t('Хранилище') + '</div>' +
       '<div class="card pad">' +
-      '  <div class="kv"><span>Где хранятся данные</span></div><p class="note tight">' + where + '</p>' +
-      '  <div class="kv"><span>Записей</span><b>' + store.S.records.length + '</b></div>' +
-      (cloud ? '<div class="kv"><span>Занято ячеек облака</span><b>' + store.keyCount() + ' из 1024</b></div>' : '') +
+      '  <div class="kv"><span>' + t('Где хранятся данные') + '</span></div><p class="note tight">' + where + '</p>' +
+      '  <div class="kv"><span>' + t('Записей') + '</span><b>' + store.S.records.length + '</b></div>' +
+      (cloud ? '<div class="kv"><span>' + t('Занято ячеек облака') + '</span><b>' + t('{0} из 1024', store.keyCount()) + '</b></div>' : '') +
       '  <div class="kv"><span>Telegram</span><b>' + u.esc(tgInfo()) + '</b></div>' +
       '</div>' +
       '<div class="card list danger-zone">' +
-      '  <button class="row danger" data-action="wipe">' + ui.icon('trash') + '<span>Удалить все данные</span></button>' +
+      '  <button class="row danger" data-action="wipe">' + ui.icon('trash') + '<span>' + t('Удалить все данные') + '</span></button>' +
       '</div>' +
-      '<p class="note center">Pixel Focus · этап 4</p>';
+      '<p class="note center">Pixel Focus · ' + t('этап {0}', 4) + '</p>';
 
     root.onclick = onClick;
     root.querySelector('#fileIn').addEventListener('change', onFile);
   }
 
   async function onClick(e) {
+    const langBtn = e.target.closest('[data-lang]');
+    if (langBtn) {
+      store.setPref('lang', langBtn.dataset.lang);
+      ui.haptic('light');
+      return;
+    }
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
     const action = btn.dataset.action;
@@ -80,9 +92,9 @@
         a.click();
         a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 5000);
-        ui.toast('Файл сохранён (проверьте папку «Загрузки»)');
+        ui.toast(t('Файл сохранён (проверьте папку «Загрузки»)'));
       } catch (err) {
-        ui.toast('Не получилось сохранить файл. Используйте «Скопировать как текст».', true);
+        ui.toast(t('Не получилось сохранить файл. Используйте «Скопировать как текст».'), true);
       }
     } else if (action === 'copy') {
       copyText();
@@ -91,10 +103,10 @@
     } else if (action === 'paste') {
       pasteSheet();
     } else if (action === 'wipe') {
-      const ok = await ui.confirm('Удалить все записи и текущее занятие? Это нельзя отменить. Сначала лучше сохранить резервную копию.', 'Удалить всё', true);
+      const ok = await ui.confirm(t('Удалить все записи, покупки и текущее занятие? Это нельзя отменить. Сначала лучше сохранить резервную копию.'), t('Удалить всё'), true);
       if (!ok) return;
       await store.wipe();
-      ui.toast('Все данные удалены');
+      ui.toast(t('Все данные удалены'));
       render(root);
     }
   }
@@ -103,15 +115,15 @@
     const text = backupText();
     try {
       await navigator.clipboard.writeText(text);
-      ui.toast('Скопировано. Вставьте текст в «Избранное» в Telegram или в заметки.', true);
+      ui.toast(t('Скопировано. Вставьте текст в «Избранное» в Telegram или в заметки.'), true);
       return;
     } catch (e) { /* покажем текст вручную */ }
     ui.openSheet({
       html:
-        '<h3>Резервная копия</h3>' +
-        '<p class="sheet-text">Выделите весь текст и скопируйте его, затем сохраните в надёжном месте.</p>' +
+        '<h3>' + t('Резервная копия') + '</h3>' +
+        '<p class="sheet-text">' + t('Выделите весь текст и скопируйте его, затем сохраните в надёжном месте.') + '</p>' +
         '<textarea class="code" id="bkText" readonly></textarea>' +
-        '<div class="btn-col"><button class="btn btn-ghost" data-close>Готово</button></div>',
+        '<div class="btn-col"><button class="btn btn-ghost" data-close>' + t('Готово') + '</button></div>',
       onMount(el) {
         const ta = el.querySelector('#bkText');
         ta.value = text;
@@ -124,12 +136,12 @@
   function pasteSheet() {
     ui.openSheet({
       html:
-        '<h3>Загрузить из текста</h3>' +
-        '<p class="sheet-text">Вставьте сюда текст резервной копии.</p>' +
+        '<h3>' + t('Загрузить из текста') + '</h3>' +
+        '<p class="sheet-text">' + t('Вставьте сюда текст резервной копии.') + '</p>' +
         '<textarea class="code" id="pasteText" placeholder="{&quot;app&quot;:&quot;pixel-focus&quot;, …}"></textarea>' +
         '<div class="form-err" id="pasteErr"></div>' +
-        '<div class="btn-col"><button class="btn btn-primary" id="pasteGo">Загрузить</button>' +
-        '<button class="btn btn-ghost" data-close>Отмена</button></div>',
+        '<div class="btn-col"><button class="btn btn-primary" id="pasteGo">' + t('Загрузить') + '</button>' +
+        '<button class="btn btn-ghost" data-close>' + t('Отмена') + '</button></div>',
       onMount(el, api) {
         el.querySelector('#pasteGo').addEventListener('click', async () => {
           const ok = await importText(el.querySelector('#pasteText').value, (msg) => {
@@ -147,7 +159,7 @@
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => importText(String(reader.result), (msg) => ui.toast(msg, true));
-    reader.onerror = () => ui.toast('Не удалось прочитать файл', true);
+    reader.onerror = () => ui.toast(t('Не удалось прочитать файл'), true);
     reader.readAsText(file);
   }
 
@@ -159,23 +171,24 @@
       showError(err.message);
       return false;
     }
-    const when = parsed.exportedAt ? new Date(parsed.exportedAt).toLocaleString('ru-RU') : 'неизвестно';
+    const when = parsed.exportedAt ? new Date(parsed.exportedAt).toLocaleString(PF.i18n.locale()) : t('неизвестно');
     const ok = await ui.confirm(
-      'Заменить текущие данные копией?<br><br>Сейчас записей: <b>' + store.S.records.length + '</b>.<br>' +
-      'В копии записей: <b>' + parsed.records.length + '</b> (создана ' + u.esc(when) + ').',
-      'Заменить', true);
+      t('Заменить текущие данные копией?') + '<br><br>' +
+      t('Сейчас записей: {0}.', '<b>' + store.S.records.length + '</b>') + '<br>' +
+      t('В копии записей: {0} (создана {1}).', '<b>' + parsed.records.length + '</b>', u.esc(when)),
+      t('Заменить'), true);
     if (!ok) return false;
     try {
       await store.importBackup(parsed);
     } catch (err) {
-      showError('Не удалось сохранить данные: ' + err.message);
+      showError(t('Не удалось сохранить данные: {0}', err.message));
       return false;
     }
-    ui.toast('Резервная копия загружена');
+    ui.toast(t('Резервная копия загружена'));
     if (root && root.isConnected) render(root);
     return true;
   }
 
   PF.screens = PF.screens || {};
-  PF.screens.settings = { title: 'Настройки', render };
+  PF.screens.settings = { render };
 })(window.PF);

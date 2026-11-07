@@ -11,6 +11,11 @@ window.PF = window.PF || {};
   const MONTHS_SHORT = ['янв.', 'февр.', 'мар.', 'апр.', 'мая', 'июн.', 'июл.',
     'авг.', 'сент.', 'окт.', 'нояб.', 'дек.'];
   const WEEKDAYS = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
+  const EN_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
+    'August', 'September', 'October', 'November', 'December'];
+  const EN_MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const EN_WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const isEn = () => PF.i18n && PF.i18n.lang === 'en';
 
   // Три занятия. code — короткая буква для компактного хранения.
   PF.ACTS = {
@@ -77,22 +82,29 @@ window.PF = window.PF || {};
       return dt.getFullYear() + '-' + pad(dt.getMonth() + 1) + '-' + pad(dt.getDate());
     },
 
-    // "1 ч 05 мин", "45 мин", "меньше минуты"
+    // Число с разделением разрядов: "1 234" / "1,234"
+    num(n) {
+      return Number(n).toLocaleString(isEn() ? 'en-US' : 'ru-RU');
+    },
+
+    // "1 ч 05 мин", "45 мин", "меньше минуты" (англ.: "1 h 05 min")
     durShort(sec) {
       const min = Math.floor(Math.max(0, sec) / 60);
-      if (min < 1) return 'меньше минуты';
+      const H = isEn() ? ' h' : ' ч';
+      const M = isEn() ? ' min' : ' мин';
+      if (min < 1) return isEn() ? 'under a minute' : 'меньше минуты';
       const h = Math.floor(min / 60);
       const m = min % 60;
-      if (!h) return m + ' мин';
-      if (!m) return h + ' ч';
-      return h + ' ч ' + pad(m) + ' мин';
+      if (!h) return m + M;
+      if (!m) return h + H;
+      return h + H + ' ' + pad(m) + M;
     },
 
     // Монеты для показа: округление до целого, "1 234", со знаком для изменений: "+18", "−30".
     coins(x, signed) {
       let n = Math.round(x);
       if (Object.is(n, -0)) n = 0;
-      const abs = Math.abs(n).toLocaleString('ru-RU');
+      const abs = PF.u.num(Math.abs(n));
       if (n < 0) return '−' + abs;
       return (signed && n > 0 ? '+' : '') + abs;
     },
@@ -109,10 +121,15 @@ window.PF = window.PF || {};
     // "Сегодня", "Вчера", "пятница, 6 ноября", "6 ноября 2025"
     dayTitle(dayKey) {
       const today = PF.u.dayKey(PF.u.nowSec());
-      if (dayKey === today) return 'Сегодня';
-      if (dayKey === PF.u.addDays(today, -1)) return 'Вчера';
+      const en = isEn();
+      if (dayKey === today) return en ? 'Today' : 'Сегодня';
+      if (dayKey === PF.u.addDays(today, -1)) return en ? 'Yesterday' : 'Вчера';
       const [y, m, d] = dayKey.split('-').map(Number);
       const dt = new Date(y, m - 1, d);
+      if (en) {
+        if (y !== new Date().getFullYear()) return EN_MONTHS[m - 1] + ' ' + d + ', ' + y;
+        return EN_WEEKDAYS[dt.getDay()] + ', ' + EN_MONTHS[m - 1] + ' ' + d;
+      }
       if (y !== new Date().getFullYear()) return d + ' ' + MONTHS_GEN[m - 1] + ' ' + y;
       return WEEKDAYS[dt.getDay()] + ', ' + d + ' ' + MONTHS_GEN[m - 1];
     },
@@ -120,6 +137,7 @@ window.PF = window.PF || {};
     // "8 нояб."
     shortDate(sec) {
       const d = toDate(sec);
+      if (isEn()) return EN_MONTHS_SHORT[d.getMonth()] + ' ' + d.getDate();
       return d.getDate() + ' ' + MONTHS_SHORT[d.getMonth()];
     },
   };
