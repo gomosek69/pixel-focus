@@ -100,13 +100,38 @@
 
   // ---------- сетка ----------
 
+  // Части тела (для танцев): каждая часть двигается отдельно.
+  const PARTS = ['legl', 'legr', 'torso', 'head', 'larm', 'rarm'];
+  const P = { legl: 0, legr: 1, torso: 2, head: 3, larm: 4, rarm: 5 };
+
+  // К какой части относится пиксель. mode — кто рисует: 'body', 'head' (причёска),
+  // 'acc' (аксессуар: выше шеи — голова, ниже — туловище), 'torso', 'pos' (одежда — по положению).
+  function partOf(mode, x, y, b) {
+    if (mode === 'head') return P.head;
+    if (mode === 'torso') return P.torso;
+    if (mode === 'acc') return y <= 15 ? P.head : P.torso;
+    if (mode === 'body' && y <= 16) return P.head;
+    if (y >= 17 && y <= 25) {
+      if (x <= b.tl - 1) return P.larm;
+      if (x >= b.tr + 1) return P.rarm;
+    }
+    if (y >= 25) return x <= 15 ? P.legl : P.legr;
+    return P.torso;
+  }
+
   class Grid {
-    constructor() {
+    constructor(b, mode) {
       this.c = new Array(N * N).fill(null);
+      this.p = new Int8Array(N * N);
       this.fx = [];
+      this.b = b;
+      this.mode = mode || 'body';
     }
     px(x, y, col) {
-      if (x >= 0 && x < N && y >= 0 && y < N) this.c[y * N + x] = col;
+      if (x >= 0 && x < N && y >= 0 && y < N) {
+        this.c[y * N + x] = col;
+        this.p[y * N + x] = partOf(this.mode, x, y, this.b);
+      }
     }
     get(x, y) {
       return x >= 0 && x < N && y >= 0 && y < N ? this.c[y * N + x] : null;
@@ -119,7 +144,7 @@
     pts(list, col) { list.forEach(([x, y]) => this.px(x, y, col)); }
     mirror(list, col) { list.forEach(([x, y]) => { this.px(x, y, col); this.px(31 - x, y, col); }); }
     layer(cls, glow) {
-      const g = new Grid();
+      const g = new Grid(this.b, this.mode);
       this.fx.push({ cls, glow: !!glow, grid: g });
       return g;
     }
@@ -771,7 +796,7 @@
         const h = g.layer('fx-pulse', true);
         h.hline(12, 19, 0, p.A); h.pts([[11, 1], [12, 1], [19, 1], [20, 1]], p.B); h.hline(13, 18, 1, p.C);
       } },
-    { id: 'acc_wings', cat: 'acc', name: 'Ангельские крылья', en: 'Angel wings', style: 'fantasy', rarity: 'legendary', price: 4500,
+    { id: 'acc_wings', cat: 'acc', name: 'Ангельские крылья', en: 'Angel wings', style: 'fantasy', rarity: 'legendary', price: 4500, part: 'torso',
       pal: { W: '#f4f8ff', B: '#bcd0f5', E: '#7f9fdc' },
       draw(g, c, p) {
         // крылья машут: два кадра, по бокам от фигуры
@@ -794,6 +819,172 @@
       } },
   ];
 
+  // ===================== ТАНЦЫ =====================
+  // Танец — это несколько кадров. В каждом кадре части тела сдвигаются (T) и поворачиваются (R)
+  // вокруг своих точек (плечо, бедро, шея). Кадры сменяются рывком, как в пиксельных играх.
+  // Координаты — в пикселях сетки 64×64. Поворот руки на +90° — рука в сторону (левая — влево),
+  // для правой руки то же движение — −90°.
+  const T = (x, y) => 'translate(' + x + 'px,' + y + 'px)';
+  const R = (a) => 'rotate(' + a + 'deg)';
+  const DANCES = {
+    six7: { dur: 0.6, frames: [
+      { larm: T(0, -7) + R(42), rarm: T(0, 3) + R(-42), all: T(0, 0), head: R(-4) },
+      { larm: T(0, -2) + R(42), rarm: T(0, -2) + R(-42), all: T(0, 1) },
+      { larm: T(0, 3) + R(42), rarm: T(0, -7) + R(-42), all: T(0, 0), head: R(4) },
+      { larm: T(0, -2) + R(42), rarm: T(0, -2) + R(-42), all: T(0, 1) },
+    ] },
+    floss: { dur: 0.9, frames: [
+      { larm: T(8, 0) + R(18), rarm: T(8, 0) + R(18), torso: T(-2, 0), head: T(-2, 0), legl: T(-2, 0), legr: T(-2, 0) },
+      { larm: T(0, 0), rarm: T(0, 0) },
+      { larm: T(-8, 0) + R(-18), rarm: T(-8, 0) + R(-18), torso: T(2, 0), head: T(2, 0), legl: T(2, 0), legr: T(2, 0) },
+      { larm: T(0, 0), rarm: T(0, 0) },
+    ] },
+    dab: { dur: 1.6, frames: [
+      { all: T(0, 0) },
+      { larm: R(-140), rarm: R(-118), head: T(4, 4) + R(-18), all: T(0, 1) },
+      { larm: R(-140), rarm: R(-118), head: T(4, 4) + R(-18), all: T(0, 1) },
+      { all: T(0, 0) },
+    ] },
+    robot: { dur: 1.4, frames: [
+      { larm: R(90), head: R(8) },
+      { larm: R(90), rarm: R(-90), head: R(0) },
+      { larm: R(0), rarm: R(-90), head: R(-8) },
+      { all: T(0, 1) },
+    ] },
+    runningman: { dur: 0.6, frames: [
+      { legl: T(0, -5), all: T(0, -1), larm: R(-25), rarm: R(-25) },
+      { legr: T(0, -5), all: T(0, -1), larm: R(25), rarm: R(25) },
+    ] },
+    shuffle: { dur: 0.8, frames: [
+      { legl: T(-3, 0) + R(18), legr: T(3, 0) + R(-18), larm: T(0, -3) + R(35), rarm: T(0, -3) + R(-35), all: T(1, 0) },
+      { all: T(0, 1) },
+      { legl: T(-3, 0) + R(18), legr: T(3, 0) + R(-18), larm: T(0, -3) + R(35), rarm: T(0, -3) + R(-35), all: T(-1, 0) },
+      { all: T(0, 1) },
+    ] },
+    carlton: { dur: 1.0, frames: [
+      { larm: R(45), rarm: R(45), torso: T(3, 0), legl: T(3, 0), legr: T(3, 0), head: T(-1, 0) },
+      { larm: R(-45), rarm: R(-45), torso: T(-3, 0), legl: T(-3, 0), legr: T(-3, 0), head: T(1, 0) },
+    ] },
+    macarena: { dur: 3.2, frames: [
+      { larm: R(75) },
+      { larm: R(75), rarm: R(-75) },
+      { larm: R(155), rarm: R(-75) },
+      { larm: R(155), rarm: R(-155) },
+      { larm: T(3, -5) + R(25), rarm: R(-155) },
+      { larm: T(3, -5) + R(25), rarm: T(-3, -5) + R(-25) },
+      { larm: T(3, -5) + R(25), rarm: T(-3, -5) + R(-25), torso: T(3, 0), legl: T(3, 0), legr: T(3, 0) },
+      { all: T(0, -4) },
+    ] },
+    bounce: { dur: 0.6, frames: [
+      { all: T(0, 2), head: T(0, 1) + R(10), larm: R(12), rarm: R(-12) },
+      { all: T(0, 0), head: R(-3) },
+    ] },
+    gangnam: { dur: 0.7, frames: [
+      { legl: T(0, -4), larm: T(6, -3) + R(-35), rarm: T(-6, -3) + R(35), all: T(0, -2) },
+      { legr: T(0, -4), larm: T(6, -3) + R(-35), rarm: T(-6, -3) + R(35), all: T(0, 0) },
+    ] },
+    moonwalk: { dur: 1.4, frames: [
+      { all: T(6, 0), legl: T(0, -3) },
+      { all: T(3, 0), legr: T(0, -3) },
+      { all: T(0, 0), legl: T(0, -3) },
+      { all: T(-3, 0), legr: T(0, -3) },
+      { all: T(-6, 0), legl: T(0, -3) },
+      { all: T(-3, 0), legr: T(0, -3) },
+      { all: T(0, 0), legl: T(0, -3) },
+      { all: T(3, 0), legr: T(0, -3) },
+    ] },
+    twist: { dur: 0.6, frames: [
+      { torso: T(2, 0), legl: R(12), legr: R(12), larm: R(35), rarm: R(-10), head: T(-1, 0) },
+      { torso: T(-2, 0), legl: R(-12), legr: R(-12), larm: R(10), rarm: R(-35), head: T(1, 0) },
+    ] },
+    disco: { dur: 1.0, frames: [
+      { rarm: R(-160), larm: R(20), all: T(2, 0), head: R(-8) },
+      { rarm: R(-30), larm: R(10), all: T(-2, 0), head: R(6) },
+    ] },
+    windmill: { dur: 0.8, frames: [
+      { rarm: R(0) }, { rarm: R(-90), all: T(0, 1) }, { rarm: R(-180) }, { rarm: R(-270), all: T(0, 1) },
+    ] },
+    spin: { dur: 1.2, frames: [
+      { all: 'scaleX(1)' }, { all: 'scaleX(0.45)' }, { all: 'scaleX(-1)' }, { all: 'scaleX(-0.45)' },
+    ] },
+    jacks: { dur: 0.7, frames: [
+      { larm: R(160), rarm: R(-160), legl: T(-3, 0) + R(18), legr: T(3, 0) + R(-18), all: T(0, -4) },
+      { all: T(0, 0) },
+    ] },
+    lforehead: { dur: 1.2, frames: [
+      { larm: T(3, 0) + R(168), legl: T(0, -3) + R(22), all: T(0, -1) },
+      { larm: T(3, 0) + R(168), legr: T(0, -3) + R(-22), all: T(0, 0) },
+    ] },
+    clap: { dur: 0.8, frames: [
+      { larm: R(150), rarm: R(-150), all: T(0, 0) },
+      { larm: T(4, 0) + R(172), rarm: T(-4, 0) + R(-172), all: T(0, -2) },
+    ] },
+    wave: { dur: 1.0, frames: [
+      { larm: T(0, -4) + R(90) },
+      { larm: T(0, -2) + R(90), head: T(0, -3) },
+      { larm: T(0, 0) + R(90), rarm: T(0, -4) + R(-90), torso: T(0, -1) },
+      { rarm: T(0, -2) + R(-90) },
+    ] },
+    charleston: { dur: 0.8, frames: [
+      { legl: T(0, -2) + R(32), rarm: R(-45), larm: R(10), all: T(0, -1) },
+      { legr: T(0, -2) + R(-32), larm: R(45), rarm: R(-10), all: T(0, -1) },
+    ] },
+  };
+
+  // CSS для танцев создаётся один раз, при первом показе танцующего персонажа.
+  let danceCssDone = false;
+  function ensureDanceCss() {
+    if (danceCssDone) return;
+    danceCssDone = true;
+    let css = '';
+    Object.keys(DANCES).forEach((id) => {
+      const d = DANCES[id];
+      const n = d.frames.length;
+      ['all', 'head', 'torso', 'larm', 'rarm', 'legl', 'legr'].forEach((part) => {
+        if (!d.frames.some((f) => f[part])) return;
+        const name = 'pfd-' + id + '-' + part;
+        let kf = '';
+        d.frames.forEach((f, i) => {
+          kf += (i * 100 / n).toFixed(2) + '%{transform:' + (f[part] || 'none') + '}';
+        });
+        kf += '100%{transform:' + (d.frames[n - 1][part] || 'none') + '}';
+        css += '@keyframes ' + name + '{' + kf + '}' +
+          '.dance-' + id + ' .pp-' + part + '{animation:' + name + ' ' + d.dur + 's steps(1,end) infinite}';
+      });
+    });
+    const st = document.createElement('style');
+    st.id = 'pf-dances';
+    st.textContent = css;
+    document.head.appendChild(st);
+  }
+
+  // Танцы в магазине: id, название, цена.
+  const DANCE_ITEMS = [
+    ['bounce', 'Хип-хоп кач', 'Hip-hop Bounce', 'street', 'common', 150],
+    ['clap', 'Хлопки', 'Clap', 'sport', 'common', 180],
+    ['wave', 'Волна', 'The Wave', 'street', 'common', 200],
+    ['twist', 'Твист', 'Twist', 'classic', 'common', 220],
+    ['jacks', 'Джампинг-джек', 'Jumping Jacks', 'sport', 'common', 250],
+    ['runningman', 'Бегущий человек', 'Running Man', 'street', 'common', 280],
+    ['carlton', 'Карлтон', 'Carlton', 'classic', 'common', 300],
+    ['robot', 'Робот', 'Robot', 'street', 'common', 320],
+    ['macarena', 'Макарена', 'Macarena', 'classic', 'common', 350],
+    ['disco', 'Диско', 'Disco', 'classic', 'common', 380],
+    ['charleston', 'Чарльстон', 'Charleston', 'classic', 'common', 400],
+    ['lforehead', 'L на лбу', 'L on Forehead', 'street', 'rare', 500],
+    ['dab', 'Даб', 'Dab', 'street', 'rare', 550],
+    ['floss', 'Флосс', 'Floss', 'street', 'rare', 600],
+    ['windmill', 'Мельница', 'Windmill', 'sport', 'rare', 650],
+    ['six7', '67', '67', 'street', 'rare', 670],
+    ['shuffle', 'Электро-шаффл', 'Electro Shuffle', 'street', 'rare', 700],
+    ['spin', 'Вращение', 'Spin', 'fantasy', 'rare', 750],
+    ['gangnam', 'Гангнам', 'Gangnam Style', 'street', 'rare', 800],
+    ['moonwalk', 'Лунная походка', 'Moonwalk', 'classic', 'rare', 900],
+  ];
+  DANCE_ITEMS.forEach(([dance, name, en, style, rarity, price]) => {
+    ITEMS.push({ id: 'dance_' + dance, cat: 'dance', name, en, style, rarity, price, dance, draw() {} });
+  });
+
   const byId = {};
   ITEMS.forEach((it) => { byId[it.id] = it; });
 
@@ -803,9 +994,10 @@
     { id: 'pants', name: 'Штаны' },
     { id: 'shoes', name: 'Обувь' },
     { id: 'acc', name: 'Аксессуары' },
+    { id: 'dance', name: 'Танцы' },
   ];
   const LAYER_ORDER = ['shoes', 'pants', 'top', 'hair', 'acc'];
-  const BASE = { hair: 'hair_short', top: 'top_tee', pants: 'pants_jeans', shoes: 'shoes_keds', acc: null };
+  const BASE = { hair: 'hair_short', top: 'top_tee', pants: 'pants_jeans', shoes: 'shoes_keds', acc: null, dance: null };
 
   const RARITY = {
     base: { name: 'бесплатная', color: '#9aa0a8' },
@@ -837,28 +1029,133 @@
       hl: tone(hc, 0.3),
       brow: tone(hc, -0.2),
     };
-    const g = new Grid();
+    const g = new Grid(c.b, 'body');
+    g.ctx = c;
     drawBody(g, c);
     LAYER_ORDER.forEach((cat) => {
       const it = byId[look.eq && look.eq[cat]];
       if (!it || it.cat !== cat) return;
       const ci = look.col ? look.col[cat] : null;
       const p = it.pal ? (Number.isInteger(ci) ? recolor(it.pal, ci) : it.pal) : {};
+      g.mode = it.part || (cat === 'hair' ? 'head' : cat === 'acc' ? 'acc' : 'pos');
       it.draw(g, c, p);
     });
-    outline(g);
     return g;
   }
 
-  function rects(grid) {
-    let out = '';
+  // ---------- 64×64: увеличение Scale2x, тонкий контур, блики ----------
+  // Scale2x (EPX) — алгоритм увеличения пиксель-арта: каждый пиксель становится 2×2,
+  // а на диагоналях углы «дорисовываются» цветом соседей, поэтому лесенки сглаживаются.
+  const M = N * 2;
+
+  function scale2x(c, p, keep) {
+    const oc = new Array(M * M).fill(null);
+    const op = new Int8Array(M * M);
+    const at = (x, y) => (x >= 0 && x < N && y >= 0 && y < N ? y * N + x : -1);
+    const col = (i) => (i < 0 ? null : c[i]);
     for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const i = y * N + x;
+        const iA = at(x, y - 1), iB = at(x + 1, y), iC = at(x - 1, y), iD = at(x, y + 1);
+        const A = col(iA), B = col(iB), Cc = col(iC), D = col(iD), E = c[i];
+        // для каждого из 4 под-пикселей: [источник цвета]
+        let s0 = i, s1 = i, s2 = i, s3 = i;
+        // мелкие детали (глаза, рот, брови) не сглаживаем — иначе они искажаются
+        const fixed = keep && (keep.has(E) || keep.has(A) || keep.has(B) || keep.has(Cc) || keep.has(D));
+        if (!fixed) {
+        if (Cc === A && Cc !== D && A !== B && A) s0 = iA;
+        if (A === B && A !== Cc && B !== D && B) s1 = iB;
+        if (D === Cc && D !== B && Cc !== A && Cc) s2 = iC;
+        if (B === D && B !== A && D !== Cc && D) s3 = iD;
+        }
+        // не «наращиваем» пиксели в пустоту, если сам пиксель пустой — кроме гладких углов внутри фигуры
+        const put = (ox, oy, src) => {
+          const k = (y * 2 + oy) * M + (x * 2 + ox);
+          oc[k] = c[src];
+          op[k] = p[src];
+        };
+        put(0, 0, s0); put(1, 0, s1); put(0, 1, s2); put(1, 1, s3);
+        if (!E) {
+          // пустой пиксель: заполняем только угол, где сходятся два одинаковых соседа (сглаживание снаружи)
+          const k0 = (y * 2) * M + x * 2;
+          if (s0 === i) oc[k0] = null;
+          if (s1 === i) oc[k0 + 1] = null;
+          if (s2 === i) oc[k0 + M] = null;
+          if (s3 === i) oc[k0 + M + 1] = null;
+        }
+      }
+    }
+    return { c: oc, p: op };
+  }
+
+  // Глаза рисуются прямо в 64×64: радужка, зрачок и блик (если их не закрывают очки).
+  function drawEyes64(img, g, cx) {
+    const pupil = tone(cx.eye, -0.5);
+    const pattern = ['IIII', 'IPPW', 'IPPI', 'IIII'];
+    [[12, 24], [18, 36]].forEach(([x32, x64]) => {
+      const open = [[x32, 10], [x32 + 1, 10], [x32, 11], [x32 + 1, 11]].every(([x, y]) => {
+        const v = g.c[y * N + x];
+        return v === cx.eye || v === '#ffffff';
+      });
+      if (!open) return;
+      pattern.forEach((row, dy) => {
+        [...row].forEach((ch, dx) => {
+          const k = (20 + dy) * M + x64 + dx;
+          img.c[k] = ch === 'I' ? cx.eye : ch === 'P' ? pupil : '#ffffff';
+        });
+      });
+    });
+  }
+
+  const toneCache = new Map();
+  function toneC(hex, f) {
+    const k = hex + f;
+    let v = toneCache.get(k);
+    if (!v) { v = tone(hex, f); toneCache.set(k, v); }
+    return v;
+  }
+
+  // Контур в 1 пиксель (на сетке 64) + блик сверху и тень снизу силуэта.
+  function finish64(img) {
+    const { c, p } = img;
+    const get = (x, y) => (x >= 0 && x < M && y >= 0 && y < M ? c[y * M + x] : null);
+    const shade = new Array(M * M).fill(0);
+    for (let y = 0; y < M; y++) {
+      for (let x = 0; x < M; x++) {
+        const v = c[y * M + x];
+        if (!v || v === OUTLINE) continue;
+        if (!get(x, y - 1)) shade[y * M + x] = 1;
+        else if (!get(x, y + 1)) shade[y * M + x] = -1;
+      }
+    }
+    const out = [];
+    for (let y = 0; y < M; y++) {
+      for (let x = 0; x < M; x++) {
+        if (c[y * M + x]) continue;
+        const nb = [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]].find(([a, b2]) => get(a, b2));
+        if (nb) out.push([y * M + x, p[nb[1] * M + nb[0]]]);
+      }
+    }
+    for (let i = 0; i < M * M; i++) {
+      if (shade[i] === 1) c[i] = toneC(c[i], 0.16);
+      else if (shade[i] === -1) c[i] = toneC(c[i], -0.14);
+    }
+    out.forEach(([i, part]) => { c[i] = OUTLINE; p[i] = part; });
+    return img;
+  }
+
+  // Прямоугольники одной части тела (строки одинакового цвета склеиваются).
+  function rects(img, part) {
+    let out = '';
+    const { c, p } = img;
+    for (let y = 0; y < M; y++) {
       let x = 0;
-      while (x < N) {
-        const col = grid.c[y * N + x];
-        if (!col) { x++; continue; }
+      while (x < M) {
+        const i = y * M + x;
+        const col = c[i];
+        if (!col || p[i] !== part) { x++; continue; }
         let w = 1;
-        while (x + w < N && grid.c[y * N + x + w] === col) w++;
+        while (x + w < M && c[i + w] === col && p[i + w] === part) w++;
         out += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="1" fill="' + col + '"/>';
         x += w;
       }
@@ -866,24 +1163,63 @@
     return out;
   }
 
+  // Точки вращения частей тела (в координатах 64×64).
+  function pivots(b) {
+    return {
+      legl: [26, 50], legr: [38, 50], torso: [32, 48], head: [32, 33],
+      larm: [(b.al + 1) * 2, 36], rarm: [(b.ar + 1) * 2, 36],
+    };
+  }
+
+  // Готовые картинки кэшируются: одна и та же внешность рисуется много раз.
+  const cache = new Map();
+  function build(look) {
+    const key = JSON.stringify([look.g, look.skin, look.eyes, look.hc, look.eq, look.col]);
+    let r = cache.get(key);
+    if (r) return r;
+    const g = compose(look);
+    const cx = g.ctx;
+    const keep = new Set([cx.eye, '#ffffff', cx.brow, '#b0574f', '#d0606a', '#f19a9a', OUTLINE]);
+    const up = scale2x(g.c, g.p, keep);
+    drawEyes64(up, g, cx);
+    const img = finish64(up);
+    const fx = g.fx.map((l) => ({ cls: l.cls, glow: l.glow, img: scale2x(l.grid.c, l.grid.p) }));
+    const piv = pivots(g.b);
+    const parts = PARTS.map((name, i) => ({ name, main: rects(img, i), fx: fx.map((l) => ({ cls: l.cls, glow: l.glow, html: rects(l.img, i) })) }));
+    r = { parts, piv, glow: fx.some((l) => l.glow) };
+    if (cache.size > 300) cache.clear();
+    cache.set(key, r);
+    return r;
+  }
+
   let svgId = 0;
 
+  // SVG-картинка персонажа (64×64). size — сторона в пикселях (лучше кратно 64).
   function svg(look, size) {
-    const g = compose(look);
+    const r = build(look);
     const id = 'pfglow' + (++svgId);
-    let fx = '';
-    let needGlow = false;
-    g.fx.forEach((l) => {
-      if (l.glow) needGlow = true;
-      fx += '<g class="fx ' + l.cls + '"' + (l.glow ? ' filter="url(#' + id + ')"' : '') + '>' + rects(l.grid) + '</g>';
+    const dance = look.eq && look.eq.dance && byId[look.eq.dance] ? byId[look.eq.dance].dance : '';
+    if (dance) ensureDanceCss();
+    // порядок: ноги, туловище, голова, руки (руки поверх, когда поднимаются)
+    const order = ['legl', 'legr', 'torso', 'head', 'larm', 'rarm'];
+    let body = '';
+    order.forEach((name) => {
+      const part = r.parts[PARTS.indexOf(name)];
+      const [ox, oy] = r.piv[name];
+      let inner = part.main;
+      part.fx.forEach((f) => {
+        if (f.html) inner += '<g class="fx ' + f.cls + '"' + (f.glow ? ' filter="url(#' + id + ')"' : '') + '>' + f.html + '</g>';
+      });
+      if (inner) body += '<g class="pp pp-' + name + '" style="transform-origin:' + ox + 'px ' + oy + 'px">' + inner + '</g>';
     });
-    const defs = needGlow
+    const defs = r.glow
       ? '<defs><filter id="' + id + '" x="-50%" y="-50%" width="200%" height="200%">' +
-        '<feGaussianBlur stdDeviation="0.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/>' +
+        '<feGaussianBlur stdDeviation="1.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/>' +
         '<feMergeNode in="SourceGraphic"/></feMerge></filter></defs>'
       : '';
-    return '<svg class="pix" width="' + size + '" height="' + size + '" viewBox="0 0 32 32" shape-rendering="crispEdges" ' +
-      'aria-hidden="true">' + defs + rects(g) + fx + '</svg>';
+    return '<svg class="pix' + (dance ? ' dancing dance-' + dance : '') + '" width="' + size + '" height="' + size + '" viewBox="0 0 64 64" ' +
+      'shape-rendering="crispEdges" aria-hidden="true">' + defs +
+      '<g class="pp pp-all" style="transform-origin:32px 62px">' + body + '</g></svg>';
   }
 
   PF.char = {
@@ -892,6 +1228,7 @@
     itemName, colorName, colorPrice,
     svg,
     compose,
+    DANCES,
     recolor,
   };
 })(window.PF);

@@ -141,8 +141,8 @@ input, textarea { font: inherit; color: inherit; }
 .current.idle .cur-body { flex: 1; }
 .cur-row { display: flex; align-items: flex-start; gap: 8px; position: relative; }
 .cur-body { flex: 1; min-width: 0; }
-.cur-char { flex: none; width: 96px; height: 96px; border-radius: 14px; position: relative; }
-.current:not(.idle) .cur-char { margin: -6px -6px 0 0; }
+.cur-char { flex: none; width: 128px; height: 128px; border-radius: 14px; position: relative; margin: -14px -10px -14px 0; }
+.current:not(.idle) .cur-char { margin: -14px -12px -10px 0; }
 .cur-idle { font-weight: 600; margin-bottom: 2px; }
 .cur-top { display: flex; align-items: center; gap: 8px; }
 .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); animation: pulse 1.6s ease-in-out infinite; }
@@ -622,13 +622,13 @@ body[data-pf-bg="5"]::before { background: var(--bgimg-5); }
 
 /* Матовое (непрозрачное) стекло */
 :root[data-glass="frosted"] {
-  --g-bg: rgba(255, 255, 255, 0.50);
+  --g-bg: color-mix(in srgb, var(--primary) 9%, rgba(246, 248, 255, 0.30));
   --g-sheen: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0.16 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.10));
-  --g-border: rgba(255, 255, 255, 0.45);
-  --g-filter: blur(40px) saturate(150%) brightness(1.04);
+    linear-gradient(160deg, rgba(255, 255, 255, 0.30), color-mix(in srgb, var(--primary) 10%, transparent) 60%, rgba(255, 255, 255, 0.06));
+  --g-border: rgba(255, 255, 255, 0.38);
+  --g-filter: blur(40px) saturate(200%) brightness(1.02);
   --g-shadow: 0 6px 22px rgba(20, 24, 40, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.55);
-  --g-strong: rgba(255, 255, 255, 0.82);
+  --g-strong: color-mix(in srgb, var(--primary) 7%, rgba(250, 251, 255, 0.78));
 }
 @media (prefers-color-scheme: dark) {
   :root[data-glass="frosted"]:not([data-scheme="light"]) {
@@ -846,3 +846,26 @@ button:active:not(:disabled) { transform: scale(0.96); }
   20% { opacity: 1; transform: translate3d(-50%, 0, 0) scale(1.1); }
   100% { opacity: 0; transform: translate3d(-50%, -46px, 0) scale(1); }
 }
+
+/* ---------- танцы ---------- */
+.char-stage:not(.hop) .pix.dancing, .cur-char .pix.dancing { animation: none; }
+.pp { transform-box: view-box; }
+
+/* ---------- переливание цветов занятий ---------- */
+/* По цветным элементам пробегает мягкий блик, а оттенок чуть «плавает». */
+@keyframes sheen { 0% { background-position: 160% 0; } 100% { background-position: -60% 0; } }
+@keyframes hueDrift { 0%, 100% { filter: hue-rotate(-7deg) saturate(1); } 50% { filter: hue-rotate(7deg) saturate(1.18) brightness(1.05); } }
+.act-btn.on .act-ic, .btn-stop, .task-act.stop, .rec .bar, .lg i, .tot-name i, .tip-row i, .chip i, .seg-btn-c-ind {
+  position: relative; overflow: hidden;
+  animation: hueDrift 5s ease-in-out infinite;
+}
+.act-btn.on .act-ic::after, .btn-stop::after, .task-act.stop::after, .rec .bar::after, .lg i::after, .tot-name i::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, 0.55) 50%, transparent 65%);
+  background-size: 250% 100%;
+  animation: sheen 3.2s ease-in-out infinite;
+}
+.act-btn.on .act-ic { animation: hueDrift 5s ease-in-out infinite, ring 1.8s ease-out infinite; }
+.act-btn.started .act-ic { animation: iconJump 0.9s var(--spring), ring 1.8s 0.9s ease-out infinite, hueDrift 5s ease-in-out infinite; }
+.current:not(.idle)::before { animation: hueDrift 6s ease-in-out infinite; }
+.chart svg { animation: hueDrift 7s ease-in-out infinite; }
