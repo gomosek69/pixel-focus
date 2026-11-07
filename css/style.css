@@ -419,3 +419,40 @@ textarea.code {
 }
 .color-note { margin: 0 6px 10px; }
 .lang-seg { margin-bottom: 4px; }
+
+/* ---------- задачи ---------- */
+
+.quick { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 14px; margin-bottom: 6px; }
+.quick input {
+  flex: 1; min-width: 0; border: 0; outline: none; background: transparent; min-height: 40px; font-size: 16px;
+}
+.quick input::placeholder { color: var(--hint); }
+.quick-add {
+  width: 40px; height: 40px; border-radius: 12px; flex: none; display: flex; align-items: center; justify-content: center;
+  background: var(--tg-theme-button-color, var(--accent)); color: var(--tg-theme-button-text-color, #fff);
+}
+.empty.small { padding: 14px 16px; font-size: 14px; }
+.task { display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 14px; }
+.task + .task { border-top: 1px solid var(--line); }
+.check {
+  width: 26px; height: 26px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--hint); color: #fff;
+}
+.check .ic { width: 16px; height: 16px; }
+.task.done .check { background: #16a34a; border-color: #16a34a; }
+.task-main { flex: 1; min-width: 0; display: flex; flex-direction: column; text-align: left; padding: 4px 0; }
+.task-title { overflow-wrap: anywhere; }
+.task.done .task-title { text-decoration: line-through; color: var(--hint); }
+.task-meta { font-size: 13px; color: var(--hint); font-variant-numeric: tabular-nums; }
+.task-meta.overdue { color: var(--danger); }
+.task-meta.run { font-weight: 600; }
+.task.running { background: color-mix(in srgb, var(--tg-theme-button-color, var(--accent)) 6%, transparent); }
+.task-acts { display: flex; gap: 6px; flex: none; }
+.task-act {
+  width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center;
+  color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent);
+}
+.task-act .ic { width: 19px; height: 19px; }
+.task-act.stop { background: var(--c); color: #fff; }
+.quick-dates { display: flex; gap: 8px; flex-wrap: wrap; margin: -2px 0 6px; }
+.chip-btn { padding: 6px 12px; border-radius: 999px; background: var(--soft); font-size: 14px; font-weight: 600; }

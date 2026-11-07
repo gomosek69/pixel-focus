@@ -15,5 +15,4 @@
 
   PF.screens = PF.screens || {};
   PF.screens.stats = placeholder('Статистика', 'stats', 'Графики и итоги появятся на этапе 6.');
-  PF.screens.tasks = placeholder('Задачи', 'tasks', 'Список задач появится на этапе 5.');
 })(window.PF);

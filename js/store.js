@@ -24,7 +24,7 @@
   const START_BALANCE = 0;      // стартовый баланс
   const KEYS_WARN = 800;        // с этого числа ячеек облака показываем предупреждение
 
-  const S = { records: [], active: null, char: null, prefs: { lang: 'auto' } };
+  const S = { records: [], active: null, char: null, prefs: { lang: 'auto' }, tasks: [] };
 
   // Персонаж по умолчанию: внешность, надетые вещи и список покупок [[id, цена, время]].
   function defaultChar() {
@@ -98,6 +98,7 @@
           if (n === 'state') payload[n] = stateDoc();
           else if (n === 'char') payload[n] = S.char;
           else if (n === 'prefs') payload[n] = S.prefs;
+          else if (n === 'tasks') payload[n] = S.tasks.length ? S.tasks.map(encodeTask) : null;
           else payload[n] = monthDoc(n);
         });
         return docs.writeDocs(payload);
@@ -122,6 +123,7 @@
     S.records = [];
     S.active = null;
     S.char = sanitizeChar(loaded.char);
+    S.tasks = (Array.isArray(loaded.tasks) ? loaded.tasks : []).map(decodeTask).filter(Boolean);
     const pr = loaded.prefs || {};
     S.prefs = { lang: ['auto', 'ru', 'en'].includes(pr.lang) ? pr.lang : 'auto' };
     if (PF.i18n) PF.i18n.setLang(S.prefs.lang);
@@ -137,6 +139,7 @@
       const a = st.active;
       S.active = { a: a.a, s: a.s, ask: Number.isFinite(a.ask) ? a.ask : a.s + ASK_FIRST };
       if (a.t) S.active.t = String(a.t);
+      if (a.taskId) S.active.taskId = String(a.taskId);
     }
     sortRecs();
   }
@@ -228,11 +231,13 @@
   function start(a, opts) {
     if (!ACTS[a]) return {};
     const t = opts && opts.t ? String(opts.t) : '';
-    if (S.active && S.active.a === a && (S.active.t || '') === t) return {};
+    const taskId = opts && opts.taskId ? String(opts.taskId) : '';
+    if (S.active && S.active.a === a && (S.active.t || '') === t && (S.active.taskId || '') === taskId) return {};
     const now = u.nowSec();
     const res = stopInternal(now);
     S.active = { a, s: now, ask: now + ASK_FIRST };
     if (t) S.active.t = t;
+    if (taskId) S.active.taskId = taskId;
     markState();
     changed();
     return res;
@@ -495,6 +500,80 @@
     return sum + activeCoins();
   }
 
+  // ---------- задачи ----------
+  // Задача: { id, title, date: 'ГГГГ-ММ-ДД' | '', time: 'ЧЧ:ММ' | '', done, c: создана, d: выполнена }
+  // В хранилище — компактно: [id, название, дата, время, 0/1, создана, выполнена].
+
+  const encodeTask = (k) => [k.id, k.title, k.date, k.time, k.done ? 1 : 0, k.c, k.d || 0];
+
+  function decodeTask(arr) {
+    if (!Array.isArray(arr) || typeof arr[1] !== 'string' || !arr[1].trim()) return null;
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(arr[2]) ? arr[2] : '';
+    const time = date && /^\d{2}:\d{2}$/.test(arr[3]) ? arr[3] : '';
+    return {
+      id: String(arr[0] || u.uid()), title: arr[1].slice(0, 200), date, time,
+      done: !!arr[4], c: Number.isFinite(arr[5]) ? arr[5] : 0, d: Number.isFinite(arr[6]) ? arr[6] : 0,
+    };
+  }
+
+  // Проверить поля задачи. Возвращает текст ошибки или null.
+  function checkTask(f) {
+    if (!f.title || !String(f.title).trim()) return t('Введите название задачи.');
+    if (String(f.title).trim().length > 200) return t('Название слишком длинное (не больше 200 символов).');
+    if (f.time && !f.date) return t('Чтобы указать время, выберите дату.');
+    return null;
+  }
+
+  const taskFields = (f) => ({
+    title: String(f.title).trim(),
+    date: f.date || '',
+    time: f.date ? (f.time || '') : '',
+  });
+
+  function markTasks() { dirty.add('tasks'); changed(); }
+
+  function addTask(f) {
+    const err = checkTask(f);
+    if (err) return err;
+    S.tasks.push(Object.assign({ id: u.uid(), done: false, c: u.nowSec(), d: 0 }, taskFields(f)));
+    markTasks();
+    return null;
+  }
+
+  function updateTask(id, f) {
+    const k = S.tasks.find((x) => x.id === id);
+    if (!k) return t('Задача не найдена.');
+    const err = checkTask(f);
+    if (err) return err;
+    Object.assign(k, taskFields(f));
+    markTasks();
+    return null;
+  }
+
+  // Отметить выполненной / вернуть. Если по задаче идёт занятие — оно завершается.
+  // Возвращает результат остановки занятия ({ rec } / { short }) или {}.
+  function toggleTask(id) {
+    const k = S.tasks.find((x) => x.id === id);
+    if (!k) return {};
+    k.done = !k.done;
+    k.d = k.done ? u.nowSec() : 0;
+    let res = {};
+    if (k.done && S.active && S.active.taskId === id) res = stopInternal(u.nowSec());
+    markTasks();
+    return res;
+  }
+
+  function removeTask(id) {
+    S.tasks = S.tasks.filter((x) => x.id !== id);
+    if (S.active && S.active.taskId === id) { delete S.active.taskId; markState(); }
+    markTasks();
+  }
+
+  function clearDoneTasks() {
+    S.tasks = S.tasks.filter((x) => !x.done);
+    markTasks();
+  }
+
   // ---------- резервная копия ----------
 
   function exportObj() {
@@ -506,6 +585,7 @@
         records: S.records.map((r) => Object.assign({}, r)),
         active: S.active ? Object.assign({}, S.active) : null,
         char: JSON.parse(JSON.stringify(S.char)),
+        tasks: S.tasks.map(encodeTask),
       },
     };
   }
@@ -531,8 +611,10 @@
     if (a && ACTS[a.a] && Number.isFinite(a.s)) {
       active = { a: a.a, s: Math.floor(a.s), ask: Number.isFinite(a.ask) ? a.ask : a.s + ASK_FIRST };
       if (a.t) active.t = String(a.t).slice(0, 200);
+      if (a.taskId) active.taskId = String(a.taskId);
     }
-    return { records, active, char: sanitizeChar(obj.data.char), exportedAt: obj.exportedAt };
+    const tasks = (Array.isArray(obj.data.tasks) ? obj.data.tasks : []).map(decodeTask).filter(Boolean);
+    return { records, active, char: sanitizeChar(obj.data.char), tasks, exportedAt: obj.exportedAt };
   }
 
   function markAllDocs() {
@@ -540,6 +622,7 @@
     S.records.forEach(markRec);
     markState();
     dirty.add('char');
+    dirty.add('tasks');
   }
 
   // Заменить все данные данными из копии.
@@ -548,6 +631,7 @@
     S.records = parsed.records.slice();
     S.active = parsed.active;
     S.char = parsed.char || defaultChar();
+    S.tasks = (parsed.tasks || []).slice();
     sortRecs();
     markAllDocs();
     changed();
@@ -559,6 +643,7 @@
     S.records = [];
     S.active = null;
     S.char = defaultChar();
+    S.tasks = [];
     changed();
     return flush();
   }
@@ -602,6 +687,11 @@
     update,
     remove,
     days,
+    addTask,
+    updateTask,
+    toggleTask,
+    removeTask,
+    clearDoneTasks,
     exportObj,
     parseBackup,
     importBackup,
