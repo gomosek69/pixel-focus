@@ -27,6 +27,31 @@
       (ICONS[name] || '') + '</svg>';
   }
 
+  // ---------- пиксельная монетка ----------
+  // Рисуется кодом из «карты» 10×10: каждая буква — цвет пикселя.
+  const COIN_MAP = [
+    '..oooooo..',
+    '.oyyyyyyo.',
+    'oyhhyyyydo',
+    'oyhyyddydo',
+    'oyyydyydyo',
+    'oyyydyydyo',
+    'oyyyyddydo',
+    'oyyyyyyddo',
+    '.oddddddo.',
+    '..oooooo..',
+  ];
+  const COIN_COLORS = { o: '#9a5b13', y: '#f6c343', h: '#fff1b8', d: '#d99a1e' };
+  let coinSvgInner = '';
+  COIN_MAP.forEach((row, y) => {
+    [...row].forEach((ch, x) => {
+      if (COIN_COLORS[ch]) coinSvgInner += '<rect x="' + x + '" y="' + y + '" width="1" height="1" fill="' + COIN_COLORS[ch] + '"/>';
+    });
+  });
+  function coin(cls) {
+    return '<svg class="coin ' + (cls || '') + '" viewBox="0 0 10 10" shape-rendering="crispEdges" aria-hidden="true">' + coinSvgInner + '</svg>';
+  }
+
   // ---------- нижние всплывающие окна (sheet) ----------
 
   const stack = [];
@@ -129,5 +154,5 @@
     } catch (e) { /* не важно */ }
   }
 
-  PF.ui = { icon, openSheet, closeTopSheet, hasOpenSheet, confirm, toast, haptic };
+  PF.ui = { icon, coin, openSheet, closeTopSheet, hasOpenSheet, confirm, toast, haptic };
 })(window.PF);

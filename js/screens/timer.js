@@ -11,13 +11,15 @@
   const PAGE_DAYS = 14;
   let daysShown = PAGE_DAYS;
   let root = null;
+  let lastBalance = null;
 
   // ---------- отрисовка ----------
 
   function render(el) {
     root = el;
     root.innerHTML =
-      '<header class="top"><h1>Таймер</h1></header>' +
+      '<header class="top top-row"><h1>Таймер</h1>' +
+      '  <button class="balance" id="balance" data-action="rates"></button></header>' +
       '<section id="current"></section>' +
       '<section class="acts" id="acts"></section>' +
       '<section class="hist">' +
@@ -26,9 +28,24 @@
       '  <div id="days"></div>' +
       '</section>';
     root.onclick = onClick;
+    renderBalance();
     renderCurrent();
     renderActs();
     renderHistory();
+  }
+
+  function renderBalance() {
+    const el = root.querySelector('#balance');
+    const b = store.balance();
+    lastBalance = Math.round(b);
+    el.innerHTML = ui.coin() + '<span>' + u.coins(b) + '</span>';
+    el.classList.toggle('neg', Math.round(b) < 0);
+  }
+
+  function sessionCoinsText() {
+    const a = store.S.active;
+    const c = store.activeCoins();
+    return (ACTS[a.a].rate > 0 ? 'Заработано: ' : 'Потрачено: ') + u.coins(Math.abs(c)) + ' мон.';
   }
 
   function renderCurrent() {
@@ -49,6 +66,7 @@
       (u.dayKey(a.s) !== u.dayKey(u.nowSec()) ? ', ' + u.shortDate(a.s) : '') + '</span></div>' +
       (a.t ? '<div class="cur-task">' + esc(a.t) + '</div>' : '') +
       '  <div class="cur-time" id="curTime">' + u.durClock(u.nowSec() - a.s) + '</div>' +
+      '  <div class="cur-coins" id="curCoins">' + ui.coin() + '<span>' + sessionCoinsText() + '</span></div>' +
       '  <button class="btn btn-stop" data-action="stop">' + ui.icon('stop') + 'Завершить</button>' +
       '</div>';
   }
@@ -78,8 +96,11 @@
       const chips = PF.ACT_ORDER.filter((k) => d.totals[k] > 0).map((k) =>
         '<span class="chip"><i style="background:' + ACTS[k].color + '"></i>' + u.durShort(d.totals[k]) + '</span>').join('');
       const rows = d.recs.map(recRow).join('');
+      const dayCoins = d.recs.reduce((sum, r) => sum + store.recCoins(r), 0);
+      const coinsChip = '<span class="chip coins-chip' + (Math.round(dayCoins) < 0 ? ' neg' : '') + '">' +
+        ui.coin() + u.coins(dayCoins, true) + '</span>';
       return '<div class="day"><div class="day-head"><span class="day-title">' + u.dayTitle(d.key) + '</span>' +
-        '<span class="chips">' + chips + '</span></div><div class="card list">' + rows + '</div></div>';
+        '<span class="chips">' + chips + coinsChip + '</span></div><div class="card list">' + rows + '</div></div>';
     }).join('');
     if (all.length > daysShown) {
       html += '<button class="btn btn-ghost more" data-action="more">Показать ещё</button>';
@@ -89,6 +110,7 @@
 
   function recRow(r) {
     const act = ACTS[r.a];
+    const c = store.recCoins(r);
     let range = u.hm(r.s) + ' – ' + u.hm(r.e);
     if (u.dayKey(r.e) !== u.dayKey(r.s)) range += ', ' + u.shortDate(r.e);
     return '<button class="rec" data-action="edit" data-id="' + esc(r.id) + '">' +
@@ -96,7 +118,8 @@
       '<span class="rec-main"><span class="rec-name">' + act.name +
       (r.t ? '<span class="rec-task"> — ' + esc(r.t) + '</span>' : '') + '</span>' +
       '<span class="rec-time">' + range + '</span></span>' +
-      '<span class="rec-dur">' + u.durShort(r.e - r.s) + '</span></button>';
+      '<span class="rec-right"><span class="rec-dur">' + u.durShort(r.e - r.s) + '</span>' +
+      '<span class="rec-coins' + (Math.round(c) < 0 ? ' neg' : '') + '">' + u.coins(c, true) + '</span></span></button>';
   }
 
   // Вызывается каждую секунду, пока открыта вкладка.
@@ -105,6 +128,14 @@
     const el = root.querySelector('#curTime');
     const a = store.S.active;
     if (el && a) el.textContent = u.durClock(u.nowSec() - a.s);
+    // Монеты за текущее занятие и баланс меняются раз в минуту.
+    const bal = Math.round(store.balance());
+    if (bal !== lastBalance) {
+      lastBalance = bal;
+      renderBalance();
+      const cc = root.querySelector('#curCoins span');
+      if (cc && a) cc.textContent = sessionCoinsText();
+    }
   }
 
   // ---------- нажатия ----------
@@ -126,6 +157,8 @@
     } else if (action === 'edit') {
       const r = store.S.records.find((x) => x.id === btn.dataset.id);
       if (r) openForm(r);
+    } else if (action === 'rates') {
+      openRates();
     } else if (action === 'more') {
       daysShown += PAGE_DAYS;
       renderHistory();
@@ -136,7 +169,34 @@
     const res = store.stop();
     ui.haptic('light');
     if (res.short) ui.toast('Занятие было короче минуты и не сохранено');
-    else if (res.rec) ui.toast('Записано: ' + ACTS[res.rec.a].name + ', ' + u.durShort(res.rec.e - res.rec.s));
+    else if (res.rec) ui.toast(recordedText(res.rec));
+  }
+
+  function recordedText(r) {
+    return 'Записано: ' + ACTS[r.a].name + ', ' + u.durShort(r.e - r.s) + ' (' + u.coins(store.recCoins(r), true) + ' мон.)';
+  }
+
+  // ---------- как начисляются монеты ----------
+
+  function openRates() {
+    const rate = (k) => {
+      const r = ACTS[k].rate;
+      return (r > 0 ? '+' : '−') + String(Math.abs(r)).replace('.', ',');
+    };
+    const rows = PF.ACT_ORDER.map((k) =>
+      '<div class="rate-row"><span class="rate-ic" style="--c:' + ACTS[k].color + '">' + ui.icon(ACTS[k].icon) + '</span>' +
+      '<span class="rate-name">' + ACTS[k].name + '</span>' +
+      '<b class="' + (ACTS[k].rate < 0 ? 'neg' : 'pos') + '">' + rate(k) + ' в минуту</b></div>').join('');
+    const b = store.balance();
+    ui.openSheet({
+      html:
+        '<h3>Монеты</h3>' +
+        '<div class="rate-balance' + (Math.round(b) < 0 ? ' neg' : '') + '">' + ui.coin('big') + u.coins(b) + '</div>' +
+        '<div class="card list rates">' + rows + '</div>' +
+        '<p class="note">Монеты считаются от времени начала занятия, поэтому начисляются и при закрытом Telegram. ' +
+        'Изменение и удаление записей сразу пересчитывает баланс. Баланс может уйти в минус — тогда в магазине ничего не купить.</p>' +
+        '<div class="btn-col"><button class="btn btn-ghost" data-close>Понятно</button></div>',
+    });
   }
 
   // ---------- форма записи ----------
@@ -200,7 +260,8 @@
           const r = read();
           $('#fErr').textContent = '';
           if (!Number.isFinite(r.s) || !Number.isFinite(r.e)) { $('#fInfo').textContent = ''; return; }
-          let t = 'Длительность: ' + u.durShort(r.e - r.s);
+          let t = 'Длительность: ' + u.durShort(r.e - r.s) + ' · ' +
+            u.coins(store.recCoins(r), true) + ' мон.';
           if (u.dayKey(r.e) !== u.dayKey(r.s)) t += ' · закончится на следующий день';
           $('#fInfo').textContent = t;
         }
@@ -291,7 +352,7 @@
           const res = store.stop(end);
           api.close();
           if (res.short) ui.toast('Занятие было короче минуты и не сохранено');
-          else if (res.rec) ui.toast('Записано: ' + act.name + ', ' + u.durShort(res.rec.e - res.rec.s));
+          else if (res.rec) ui.toast(recordedText(res.rec));
         });
       },
     });

@@ -14,9 +14,9 @@ window.PF = window.PF || {};
 
   // Три занятия. code — короткая буква для компактного хранения.
   PF.ACTS = {
-    work: { code: 'w', name: 'Работа', color: '#3b82f6', icon: 'work' },
-    study: { code: 's', name: 'Учёба', color: '#8b5cf6', icon: 'study' },
-    rest: { code: 'r', name: 'Отдых', color: '#10b981', icon: 'rest' },
+    work: { code: 'w', name: 'Работа', color: '#3b82f6', icon: 'work', rate: 0.3 },
+    study: { code: 's', name: 'Учёба', color: '#8b5cf6', icon: 'study', rate: 1 },
+    rest: { code: 'r', name: 'Отдых', color: '#10b981', icon: 'rest', rate: -1 },
   };
   PF.ACT_ORDER = ['work', 'study', 'rest'];
 
@@ -86,6 +86,15 @@ window.PF = window.PF || {};
       if (!h) return m + ' мин';
       if (!m) return h + ' ч';
       return h + ' ч ' + pad(m) + ' мин';
+    },
+
+    // Монеты для показа: округление до целого, "1 234", со знаком для изменений: "+18", "−30".
+    coins(x, signed) {
+      let n = Math.round(x);
+      if (Object.is(n, -0)) n = 0;
+      const abs = Math.abs(n).toLocaleString('ru-RU');
+      if (n < 0) return '−' + abs;
+      return (signed && n > 0 ? '+' : '') + abs;
     },
 
     // "1:05:23"

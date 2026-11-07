@@ -1,4 +1,4 @@
-// Вкладка «Настройки». На этапе 1 — только резервная копия и сведения о хранилище.
+// Вкладка «Настройки». Пока — резервная копия и сведения о хранилище.
 (function (PF) {
   'use strict';
 
@@ -7,6 +7,13 @@
   const store = PF.store;
 
   let root = null;
+
+  // Короткая техническая справка: где запущено приложение.
+  function tgInfo() {
+    const tg = window.Telegram && window.Telegram.WebApp;
+    if (!tg || !tg.platform || tg.platform === 'unknown') return 'не обнаружен';
+    return tg.platform + ', версия ' + tg.version + (tg.initData ? '' : ', без данных запуска');
+  }
 
   function backupFileName() {
     return 'pixel-focus-' + u.dayKey(u.nowSec()) + '.json';
@@ -25,6 +32,11 @@
     root.innerHTML =
       '<header class="top"><h1>Настройки</h1></header>' +
       (PF.storageWarning ? '<div class="card warn">' + u.esc(PF.storageWarning) + '</div>' : '') +
+      (store.storageNearlyFull()
+        ? '<div class="card warn"><b>Облако Telegram почти заполнено: ' + store.keyCount() + ' из 1024 ячеек.</b><br>' +
+          'Сохраните резервную копию и попросите уплотнить хранение или убрать старые записи в архив. ' +
+          'Когда ячейки закончатся, новые записи перестанут сохраняться.</div>'
+        : '') +
       '<div class="group-title">Резервная копия</div>' +
       '<div class="card list">' +
       '  <button class="row" data-action="download">' + ui.icon('download') + '<span>Сохранить в файл</span></button>' +
@@ -40,11 +52,12 @@
       '  <div class="kv"><span>Где хранятся данные</span></div><p class="note tight">' + where + '</p>' +
       '  <div class="kv"><span>Записей</span><b>' + store.S.records.length + '</b></div>' +
       (cloud ? '<div class="kv"><span>Занято ячеек облака</span><b>' + store.keyCount() + ' из 1024</b></div>' : '') +
+      '  <div class="kv"><span>Telegram</span><b>' + u.esc(tgInfo()) + '</b></div>' +
       '</div>' +
       '<div class="card list danger-zone">' +
       '  <button class="row danger" data-action="wipe">' + ui.icon('trash') + '<span>Удалить все данные</span></button>' +
       '</div>' +
-      '<p class="note center">Pixel Focus · этап 1</p>';
+      '<p class="note center">Pixel Focus · этап 3</p>';
 
     root.onclick = onClick;
     root.querySelector('#fileIn').addEventListener('change', onFile);

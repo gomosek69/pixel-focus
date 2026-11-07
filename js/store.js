@@ -20,6 +20,8 @@
   const ASK_REPEAT = 2 * 3600;  // после ответа «да» — снова через 2 часа
   const MIN_SESSION = 60;       // занятия короче минуты не сохраняем
   const MAX_MANUAL = 24 * 3600; // ручная запись — не длиннее суток
+  const START_BALANCE = 0;      // стартовый баланс
+  const KEYS_WARN = 800;        // с этого числа ячеек облака показываем предупреждение
 
   const S = { records: [], active: null };
   let docs = null;
@@ -120,7 +122,7 @@
 
   async function init() {
     const tg = PF.tg;
-    const inTelegram = !!(tg && tg.initData);
+    const inTelegram = !!tg; // app.js кладёт сюда объект Telegram только внутри Telegram
     const canCloud = inTelegram && tg.CloudStorage && tg.isVersionAtLeast && tg.isVersionAtLeast('6.9');
     PF.storageWarning = null;
 
@@ -139,6 +141,21 @@
       backend = PF.storage.local();
       docs = new PF.storage.DocStore(backend);
       loaded = await docs.loadAll();
+    }
+
+    // Облако пустое, а на этом устройстве уже есть записи (сохранённые раньше
+    // в память встроенного браузера) — переносим их в облако.
+    if (backend.name === 'cloud' && !Object.keys(loaded).length) {
+      try {
+        const localDocs = await new PF.storage.DocStore(PF.storage.local()).loadAll();
+        if (Object.keys(localDocs).length) {
+          await docs.writeDocs(localDocs);
+          loaded = localDocs;
+          PF.migratedNotice = 'Записи с этого устройства перенесены в облако Telegram.';
+        }
+      } catch (e) {
+        console.error('Не удалось перенести записи в облако', e);
+      }
     }
     applyDocs(loaded);
   }
@@ -266,6 +283,26 @@
     return [...map.values()];
   }
 
+  // ---------- монеты ----------
+  // Баланс нигде не хранится: он всегда считается заново из записей,
+  // поэтому правка и удаление записей сразу его пересчитывают.
+
+  // Монеты за завершённую запись — точно, с дробями (ставка × минуты).
+  const recCoins = (r) => ACTS[r.a].rate * (r.e - r.s) / 60;
+
+  // Монеты за текущее занятие — по целым минутам, поэтому баланс меняется раз в минуту.
+  function activeCoins() {
+    const a = S.active;
+    if (!a) return 0;
+    return ACTS[a.a].rate * Math.floor(Math.max(0, u.nowSec() - a.s) / 60);
+  }
+
+  function balance() {
+    let sum = START_BALANCE;
+    for (const r of S.records) sum += recCoins(r);
+    return sum + activeCoins();
+  }
+
   // ---------- резервная копия ----------
 
   function exportObj() {
@@ -340,6 +377,11 @@
     on: (fn) => listeners.push(fn),
     get backendName() { return docs ? docs.backendName : ''; },
     keyCount: () => (docs ? docs.keyCount() : 0),
+    KEYS_WARN,
+    storageNearlyFull: () => !!docs && docs.backendName === 'cloud' && docs.keyCount() >= KEYS_WARN,
+    recCoins,
+    activeCoins,
+    balance,
     start,
     stop,
     confirmStill,
