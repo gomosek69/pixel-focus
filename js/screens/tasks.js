@@ -10,6 +10,7 @@
   const t = PF.t;
 
   let root = null;
+  let justToggled = null; // задача, которую только что отметили (для анимации галочки)
 
   // Ключ для сортировки: дата + время (без времени — в конце дня).
   const sortKey = (k) => (k.date || '9999-99-99') + ' ' + (k.time || '99:99');
@@ -89,7 +90,7 @@
           'aria-label="' + esc(t('Начать: {0}', t(ACTS[act].name))) + '">' + ui.icon(ACTS[act].icon) + '</button>').join('');
       }
     }
-    return '<div class="task' + (k.done ? ' done' : '') + (running ? ' running' : '') + '">' +
+    return '<div class="task' + (k.done ? ' done' : '') + (running ? ' running' : '') + (k.id === justToggled && k.done ? ' just' : '') + '">' +
       '<button class="check" data-action="toggle" data-id="' + esc(k.id) + '" aria-label="' + esc(t('Выполнено')) + '">' +
       (k.done ? '<svg viewBox="0 0 24 24" class="ic"><path d="M5 12l5 5 9-10" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>' : '') +
       '</button>' +
@@ -122,6 +123,8 @@
     } else if (action === 'edit' && k) {
       openForm(k);
     } else if (action === 'toggle' && k) {
+      justToggled = id;
+      setTimeout(() => { if (justToggled === id) justToggled = null; }, 800);
       const res = store.toggleTask(id);
       ui.haptic(k.done ? 'success' : 'light');
       if (res.rec) ui.toast(t('Задача выполнена. Записано: {0}, {1}', t(ACTS[res.rec.a].name), u.durShort(res.rec.e - res.rec.s)));

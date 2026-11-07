@@ -123,7 +123,7 @@
     root.innerHTML =
       '<header class="top"><h1>' + t('Статистика') + '</h1></header>' +
       chartTypesHtml() +
-      '<div class="seg seg-main">' +
+      '<div class="seg seg-main" data-seg="stats-mode">' +
       ['day', 'month', 'year'].map((m) =>
         '<button class="seg-btn' + (mode === m ? ' on' : '') + '" data-mode="' + m + '">' +
         t({ day: 'День', month: 'Месяц', year: 'Год' }[m]) + '</button>').join('') +
@@ -223,11 +223,18 @@
       '<button class="ct-btn' + (cur === c.id ? ' on' : '') + '" data-chart="' + c.id + '">' + ui.icon(c.icon) + t(c.name) + '</button>').join('') + '</div>';
   }
 
+  let lastChartKey = '';
   function drawChart() {
     const type = store.S.prefs.chart;
     if (type === 'pie') drawPie();
     else if (type === 'lines' || type === 'cumulative') drawLines(type === 'cumulative');
     else drawBars(type === 'percent');
+    // Анимация появления — только при смене вида, режима или периода.
+    const key = type + '|' + mode + '|' + model.s;
+    if (key !== lastChartKey) {
+      root.querySelector('#chart').classList.add('chart-anim');
+      lastChartKey = key;
+    }
   }
 
   // Общая разметка осей: сетка, подписи шкалы и подписи столбцов.
@@ -307,9 +314,10 @@
         const h = Math.max(0, (val / sc.max) * f.ih - gap);
         if (h < 0.5) { base -= gap; return; }
         const y = base - gap - h;
+        const st = ' class="bar" style="animation-delay:' + Math.round(i * (300 / n)) + 'ms"';
         g += j === segs.length - 1
-          ? '<path d="' + topRounded(x, y, bw, h, 3) + '" fill="' + ACTS[k].color + '"/>'
-          : '<rect x="' + x + '" y="' + y + '" width="' + bw + '" height="' + h + '" fill="' + ACTS[k].color + '"/>';
+          ? '<path' + st + ' d="' + topRounded(x, y, bw, h, 3) + '" fill="' + ACTS[k].color + '"/>'
+          : '<rect' + st + ' x="' + x + '" y="' + y + '" width="' + bw + '" height="' + h + '" fill="' + ACTS[k].color + '"/>';
         base = y;
       });
     });
@@ -355,7 +363,7 @@
       if (!pts.length) return;
       const line = smoothPath(pts);
       g += '<path d="' + line + 'L' + pts[pts.length - 1].x.toFixed(1) + ',' + base + 'L' + pts[0].x.toFixed(1) + ',' + base + 'Z" ' +
-        'fill="' + ACTS[k].color + '" fill-opacity="0.10"/>';
+        'class="area" fill="' + ACTS[k].color + '" fill-opacity="0.10"/>';
       g += '<path class="line" d="' + line + '" stroke="' + ACTS[k].color + '"/>';
       // точка на конце линии
       const e = pts[pts.length - 1];
@@ -421,7 +429,8 @@
         d = 'M' + x1 + ',' + y1 + 'A' + R + ',' + R + ' 0 ' + big + ' 1 ' + x2 + ',' + y2 +
           'L' + x3 + ',' + y3 + 'A' + r + ',' + r + ' 0 ' + big + ' 0 ' + x4 + ',' + y4 + 'Z';
       }
-      g += '<path class="slice" data-k="' + k + '" d="' + d + '" fill="' + ACTS[k].color + '" fill-rule="evenodd"/>';
+      g += '<path class="slice" data-k="' + k + '" d="' + d + '" fill="' + ACTS[k].color + '" fill-rule="evenodd" ' +
+        'style="transform-box:view-box;transform-origin:' + cx + 'px ' + cy + 'px;animation-delay:' + (slices.length * 90) + 'ms"/>';
       slices.push({ k, share, mid: (a0 + a1) / 2 });
       a0 = a1;
     });

@@ -56,6 +56,49 @@
     return '<svg class="coin ' + (cls || '') + '" viewBox="0 0 10 10" shape-rendering="crispEdges" aria-hidden="true">' + coinSvgInner + '</svg>';
   }
 
+  // ---------- скользящий индикатор переключателей ----------
+  // У каждого .seg есть плашка .seg-ind под выбранной кнопкой. При перерисовке экрана
+  // плашка ставится на старое место (запомненное по data-seg) и плавно едет к новому.
+  const segMem = {};
+  function segs(scope) {
+    (scope || document).querySelectorAll('.seg').forEach((seg) => {
+      let ind = seg.querySelector(':scope > .seg-ind');
+      if (!ind) {
+        ind = document.createElement('span');
+        ind.className = 'seg-ind';
+        seg.prepend(ind);
+      }
+      const on = seg.querySelector(':scope > .seg-btn.on');
+      if (!on) { ind.style.opacity = '0'; return; }
+      const key = seg.dataset.seg || '';
+      const x = on.offsetLeft, w = on.offsetWidth;
+      const col = getComputedStyle(on).getPropertyValue('--c').trim();
+      ind.style.backgroundColor = col || '';
+      ind.style.top = on.offsetTop + 'px';
+      ind.style.height = on.offsetHeight + 'px';
+      const prev = key ? segMem[key] : null;
+      const fresh = !ind.dataset.ready;
+      if (fresh && prev && (prev.x !== x || prev.w !== w)) {
+        ind.style.transition = 'none';
+        ind.style.transform = 'translateX(' + prev.x + 'px)';
+        ind.style.width = prev.w + 'px';
+        void ind.offsetWidth; // зафиксировать старое положение
+        ind.style.transition = '';
+      } else if (fresh) {
+        ind.style.transition = 'none';
+        ind.style.transform = 'translateX(' + x + 'px)';
+        ind.style.width = w + 'px';
+        void ind.offsetWidth;
+        ind.style.transition = '';
+      }
+      ind.dataset.ready = '1';
+      ind.style.transform = 'translateX(' + x + 'px)';
+      ind.style.width = w + 'px';
+      ind.style.opacity = '1';
+      if (key) segMem[key] = { x, w };
+    });
+  }
+
   // ---------- нижние всплывающие окна (sheet) ----------
 
   const stack = [];
@@ -97,6 +140,7 @@
     stack.push(api);
     syncBackButton();
     if (opts.onMount) opts.onMount(api.el, api);
+    requestAnimationFrame(() => segs(api.el));
     return api;
   }
 
@@ -158,5 +202,5 @@
     } catch (e) { /* не важно */ }
   }
 
-  PF.ui = { icon, coin, openSheet, closeTopSheet, hasOpenSheet, confirm, toast, haptic };
+  PF.ui = { icon, coin, segs, openSheet, closeTopSheet, hasOpenSheet, confirm, toast, haptic };
 })(window.PF);

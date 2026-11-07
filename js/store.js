@@ -34,9 +34,10 @@
     accent: (v) => v === 'auto' || (Number.isInteger(v) && v >= 0 && v < 16),
     bg: (v) => Number.isInteger(v) && v >= 0 && v < 16,
     chart: (v) => ['bars', 'percent', 'pie', 'lines', 'cumulative'].includes(v),
+    glass: (v) => ['liquid', 'frosted'].includes(v),
   };
   function defaultPrefs() {
-    return { lang: 'auto', theme: 'auto', accent: 'auto', bg: 0, chart: 'bars' };
+    return { lang: 'auto', theme: 'auto', accent: 'auto', bg: 0, chart: 'bars', glass: 'liquid' };
   }
   function sanitizePrefs(pr) {
     const out = defaultPrefs();
@@ -418,7 +419,7 @@
     if (key === 'lang') {
       PF.i18n.setLang(value);
       emit('lang');
-    } else if (key === 'theme' || key === 'accent' || key === 'bg') {
+    } else if (key === 'theme' || key === 'accent' || key === 'bg' || key === 'glass') {
       emit('theme');
     }
     changed();

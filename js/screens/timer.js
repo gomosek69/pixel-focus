@@ -14,6 +14,7 @@
   let daysShown = PAGE_DAYS;
   let root = null;
   let lastBalance = null;
+  let lastActiveKey = null; // чтобы анимировать карточку только при смене занятия
 
   // ---------- отрисовка ----------
 
@@ -57,16 +58,20 @@
   function renderCurrent() {
     const box = root.querySelector('#current');
     const a = store.S.active;
+    const key = a ? a.a + a.s : 'none';
+    const changedActive = lastActiveKey !== null && key !== lastActiveKey;
+    lastActiveKey = key;
+    const enter = changedActive ? ' enter' : '';
     if (!a) {
       box.innerHTML =
-        '<div class="card current idle"><div class="cur-body">' +
+        '<div class="card current idle' + enter + '"><div class="cur-body">' +
         '<div class="cur-idle">' + t('Сейчас ничего не идёт') + '</div>' +
         '<div class="hint">' + t('Нажмите на занятие, чтобы начать') + '</div></div>' + charHtml() + '</div>';
       return;
     }
     const act = ACTS[a.a];
     box.innerHTML =
-      '<div class="card current" style="--c:' + act.color + '">' +
+      '<div class="card current' + enter + '" style="--c:' + act.color + '">' +
       '<div class="cur-row"><div class="cur-body">' +
       '  <div class="cur-top"><span class="dot"></span><span class="cur-name">' + actName(a.a) + '</span>' +
       '    <span class="cur-since">' + t('с {0}', sinceText(a.s)) + '</span></div>' +
@@ -146,6 +151,8 @@
     if (bal !== lastBalance) {
       lastBalance = bal;
       renderBalance();
+      const be = root.querySelector('#balance');
+      be.classList.remove('bump'); void be.offsetWidth; be.classList.add('bump');
       const cc = root.querySelector('#curCoins span');
       if (cc && a) cc.textContent = sessionCoinsText();
     }
@@ -244,7 +251,7 @@
       html:
         '<h3>' + t(isEdit ? 'Изменить запись' : 'Новая запись') + '</h3>' +
         (isEdit && rec.t ? '<div class="form-task">' + t('Задача: {0}', esc(rec.t)) + '</div>' : '') +
-        '<div class="seg">' + seg + '</div>' +
+        '<div class="seg" data-seg="form-act">' + seg + '</div>' +
         '<label class="field"><span>' + t('Дата') + '</span><input type="date" id="fDate" value="' + date + '" max="' + u.dayKey(now) + '"></label>' +
         '<div class="field-row">' +
         '  <label class="field"><span>' + t('Начало') + '</span><input type="time" id="fStart" value="' + ts + '"></label>' +
@@ -283,6 +290,7 @@
         el.querySelectorAll('.seg-btn').forEach((b) => b.addEventListener('click', () => {
           cur = b.dataset.a;
           el.querySelectorAll('.seg-btn').forEach((x) => x.classList.toggle('on', x === b));
+          ui.segs(el);
           info();
         }));
         ['#fDate', '#fStart', '#fEnd'].forEach((s) => $(s).addEventListener('input', info));
