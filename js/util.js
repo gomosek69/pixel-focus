@@ -124,6 +124,7 @@ window.PF = window.PF || {};
       const en = isEn();
       if (dayKey === today) return en ? 'Today' : 'Сегодня';
       if (dayKey === PF.u.addDays(today, -1)) return en ? 'Yesterday' : 'Вчера';
+      if (dayKey === PF.u.addDays(today, 1)) return en ? 'Tomorrow' : 'Завтра';
       const [y, m, d] = dayKey.split('-').map(Number);
       const dt = new Date(y, m - 1, d);
       if (en) {

@@ -7,26 +7,36 @@
   <title>Pixel Focus</title>
   <!-- Библиотека Telegram Mini Apps. В обычном браузере приложение работает и без неё. -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="css/style.css?v=6">
+  <style>
+    /* Минимум оформления, пока грузятся стили приложения */
+    body { margin: 0; background: var(--tg-theme-secondary-bg-color, #f2f3f7); color: var(--tg-theme-hint-color, #8a8f98);
+      font: 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    @media (prefers-color-scheme: dark) { body { background: var(--tg-theme-secondary-bg-color, #0e1014); } }
+    .loading { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; }
+  </style>
 </head>
 <body>
-  <div id="loading" class="loading">Загрузка…</div>
+  <div id="loading" class="loading">…</div>
   <div id="app" hidden>
     <main id="screen"></main>
     <nav id="tabbar" class="tabbar"></nav>
   </div>
 
-  <script src="js/util.js?v=6"></script>
-  <script src="js/i18n.js?v=6"></script>
-  <script src="js/i18n-en.js?v=6"></script>
-  <script src="js/storage.js?v=6"></script>
-  <script src="js/char.js?v=6"></script>
-  <script src="js/store.js?v=6"></script>
-  <script src="js/ui.js?v=6"></script>
-  <script src="js/screens/timer.js?v=6"></script>
-  <script src="js/screens/char.js?v=6"></script>
-  <script src="js/screens/settings.js?v=6"></script>
-  <script src="js/screens/placeholders.js?v=6"></script>
-  <script src="js/app.js?v=6"></script>
+  <!--
+    Этот файл больше не нужно менять при обновлениях.
+    Он всегда загружает свежий loader.js (метка времени в адресе не даёт взять старую копию),
+    а уже loader.js знает номер версии и список файлов приложения.
+  -->
+  <script>
+    (function () {
+      var s = document.createElement('script');
+      s.src = 'loader.js?t=' + Date.now();
+      s.onerror = function () {
+        document.getElementById('loading').textContent =
+          'Не удалось загрузить приложение. Проверьте интернет. / Failed to load. Check your connection.';
+      };
+      document.body.appendChild(s);
+    })();
+  </script>
 </body>
 </html>
