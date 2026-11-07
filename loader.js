@@ -9,7 +9,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '7';
+  var VERSION = '8';
 
   var CSS = ['css/style.css'];
   var JS = [
@@ -23,8 +23,8 @@
     'js/screens/timer.js',
     'js/screens/char.js',
     'js/screens/tasks.js',
+    'js/screens/stats.js',
     'js/screens/settings.js',
-    'js/screens/placeholders.js',
     'js/app.js',
   ];
 
