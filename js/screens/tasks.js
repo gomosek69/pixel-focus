@@ -126,6 +126,7 @@
       justToggled = id;
       setTimeout(() => { if (justToggled === id) justToggled = null; }, 800);
       const res = store.toggleTask(id);
+      if (res.rec) ui.floatCoins(store.recCoins(res.rec));
       ui.haptic(k.done ? 'success' : 'light');
       if (res.rec) ui.toast(t('Задача выполнена. Записано: {0}, {1}', t(ACTS[res.rec.a].name), u.durShort(res.rec.e - res.rec.s)));
       else if (res.short) ui.toast(t('Занятие было короче минуты и не сохранено'));
@@ -136,6 +137,7 @@
       if (res.short) setTimeout(() => ui.toast(t('Предыдущее занятие было короче минуты и не сохранено')), 2600);
     } else if (action === 'stop') {
       const res = store.stop();
+      if (res.rec) ui.floatCoins(store.recCoins(res.rec));
       ui.haptic('light');
       if (res.short) ui.toast(t('Занятие было короче минуты и не сохранено'));
       else if (res.rec) ui.toast(t('Записано: {0}, {1} ({2} мон.)', t(ACTS[res.rec.a].name), u.durShort(res.rec.e - res.rec.s), u.coins(store.recCoins(res.rec), true)));

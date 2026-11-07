@@ -202,5 +202,20 @@
     } catch (e) { /* не важно */ }
   }
 
-  PF.ui = { icon, coin, segs, openSheet, closeTopSheet, hasOpenSheet, confirm, toast, haptic };
+  // Всплывающие монеты над балансом (или в правом верхнем углу).
+  function floatCoins(amount) {
+    const n = Math.round(amount);
+    if (!n) return;
+    const anchor = document.querySelector('.balance');
+    const r = anchor ? anchor.getBoundingClientRect() : { left: window.innerWidth - 80, width: 60, bottom: 60 };
+    const el = document.createElement('div');
+    el.className = 'float-coins' + (n < 0 ? ' neg' : '');
+    el.innerHTML = coin() + '<span>' + PF.u.coins(n, true) + '</span>';
+    el.style.left = (r.left + r.width / 2) + 'px';
+    el.style.top = (r.bottom + 6) + 'px';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1700);
+  }
+
+  PF.ui = { icon, coin, segs, floatCoins, openSheet, closeTopSheet, hasOpenSheet, confirm, toast, haptic };
 })(window.PF);

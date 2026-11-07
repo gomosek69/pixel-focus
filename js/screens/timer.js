@@ -61,7 +61,7 @@
     const key = a ? a.a + a.s : 'none';
     const changedActive = lastActiveKey !== null && key !== lastActiveKey;
     lastActiveKey = key;
-    const enter = changedActive ? ' enter' : '';
+    const enter = changedActive ? (a ? ' enter-start' : ' enter-stop') : '';
     if (!a) {
       box.innerHTML =
         '<div class="card current idle' + enter + '"><div class="cur-body">' +
@@ -167,7 +167,12 @@
     if (action === 'start') {
       const k = btn.dataset.a;
       if (store.S.active && store.S.active.a === k) { doStop(); return; }
-      const res = store.start(k);
+      // Запомнить, где нажали, чтобы волна пошла от пальца.
+      const br = btn.getBoundingClientRect();
+      const px = (e.clientX || br.left + br.width / 2) - br.left;
+      const py = (e.clientY || br.top + br.height / 2) - br.top;
+      const res = store.start(k); // экран перерисуется
+      startEffects(k, px, py, br);
       ui.haptic('medium');
       if (res.short) ui.toast(t('Предыдущее занятие было короче минуты и не сохранено'));
     } else if (action === 'stop') {
@@ -187,8 +192,33 @@
     }
   }
 
+  // Волна цвета по кнопке, прыжок иконки, заливка карточки из точки нажатия.
+  function startEffects(k, px, py, oldRect) {
+    const b = root.querySelector('.act-btn[data-a="' + k + '"]');
+    if (b) {
+      const size = Math.max(b.offsetWidth, b.offsetHeight) * 2.6;
+      const rp = document.createElement('span');
+      rp.className = 'ripple';
+      rp.style.width = rp.style.height = size + 'px';
+      rp.style.left = (px - size / 2) + 'px';
+      rp.style.top = (py - size / 2) + 'px';
+      b.prepend(rp);
+      b.classList.add('started');
+      setTimeout(() => rp.remove(), 1200);
+    }
+    const card = root.querySelector('.current');
+    if (card) {
+      const cr = card.getBoundingClientRect();
+      const x = ((oldRect.left + px) - cr.left) / cr.width * 100;
+      const y = ((oldRect.top + py) - cr.top) / cr.height * 100;
+      card.style.setProperty('--rx', Math.round(x) + '%');
+      card.style.setProperty('--ry', Math.round(y) + '%');
+    }
+  }
+
   function doStop() {
     const res = store.stop();
+    if (res.rec) ui.floatCoins(store.recCoins(res.rec));
     ui.haptic('light');
     if (res.short) ui.toast(t('Занятие было короче минуты и не сохранено'));
     else if (res.rec) ui.toast(recordedText(res.rec));
@@ -373,6 +403,7 @@
           if (end > u.nowSec()) { $('#askErr').textContent = t('Время окончания не может быть в будущем.'); return; }
           const res = store.stop(end);
           api.close();
+          if (res.rec) ui.floatCoins(store.recCoins(res.rec));
           if (res.short) ui.toast(t('Занятие было короче минуты и не сохранено'));
           else if (res.rec) ui.toast(recordedText(res.rec));
         });

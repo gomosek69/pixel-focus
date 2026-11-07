@@ -251,7 +251,7 @@ PF.EN = {
   'Светлая': 'Light',
   'Тёмная': 'Dark',
   'Основной цвет': 'Accent color',
-  'Фон главного экрана': 'Home screen background',
+  'Фон приложения': 'App background',
   'Обычный': 'Plain',
   'Рассвет': 'Sunrise',
   'Океан': 'Ocean',

@@ -94,7 +94,7 @@
         '<button class="seg-btn' + ((pr.glass || 'liquid') === g ? ' on' : '') + '" data-glassopt="' + g + '">' +
         (g === 'liquid' ? 'Liquid Glass' : t('Матовое стекло')) + '</button>').join('') + '</div></div>' +
       '  <div><div class="set-label">' + t('Основной цвет') + '</div><div class="accents">' + accents + '</div></div>' +
-      '  <div><div class="set-label">' + t('Фон главного экрана') + '</div><div class="bgs">' + bgs + '</div></div>' +
+      '  <div><div class="set-label">' + t('Фон приложения') + '</div><div class="bgs">' + bgs + '</div></div>' +
       '</div>';
   }
 
