@@ -7,8 +7,8 @@
       title,
       render(el) {
         el.innerHTML =
-          '<header class="top"><h1>' + title + '</h1></header>' +
-          '<div class="placeholder">' + PF.ui.icon(iconName, 'big') + '<p>' + text + '</p></div>';
+          '<header class="top"><h1>' + PF.t(title) + '</h1></header>' +
+          '<div class="placeholder">' + PF.ui.icon(iconName, 'big') + '<p>' + PF.t(text) + '</p></div>';
       },
     };
   }

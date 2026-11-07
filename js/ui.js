@@ -113,8 +113,8 @@
         html:
           '<p class="sheet-text">' + text + '</p>' +
           '<div class="btn-col">' +
-          '<button class="btn ' + (danger ? 'btn-danger' : 'btn-primary') + '" data-ok>' + PF.u.esc(okLabel || 'Да') + '</button>' +
-          '<button class="btn btn-ghost" data-close>Отмена</button></div>',
+          '<button class="btn ' + (danger ? 'btn-danger' : 'btn-primary') + '" data-ok>' + PF.u.esc(okLabel || PF.t('Да')) + '</button>' +
+          '<button class="btn btn-ghost" data-close>' + PF.t('Отмена') + '</button></div>',
         onMount(el, api) {
           el.querySelector('[data-ok]').addEventListener('click', () => {
             answered = true;

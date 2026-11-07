@@ -385,3 +385,37 @@ textarea.code {
 .center { text-align: center; }
 .try-price { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 26px; font-weight: 700; margin-top: 10px; }
 .btn:disabled { opacity: .45; }
+
+/* ---------- цвет одежды ---------- */
+
+.color-card { margin-bottom: 12px; }
+.color-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.color-head .hint { font-size: 13px; }
+.cswatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.cswatch {
+  position: relative; width: 34px; height: 34px; border-radius: 10px; background: var(--sw);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+.cswatch[data-color="orig"] { width: auto; padding: 0 10px; }
+.cs-label {
+  font-size: 12px; font-weight: 600; color: #fff;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.8), 0 0 1px rgba(0, 0, 0, 0.9);
+}
+.cswatch.on { box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--tg-theme-button-color, var(--accent)); }
+.cswatch.locked::after {
+  content: ""; position: absolute; inset: 0; border-radius: 10px;
+  background: repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.18) 0 3px, transparent 3px 7px);
+}
+.lock {
+  position: absolute; right: -4px; bottom: -4px; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--card); box-shadow: 0 0 0 1px var(--line); z-index: 1;
+}
+.lock::before {
+  content: ""; position: absolute; left: 4px; top: 6px; width: 6px; height: 5px; border-radius: 1px; background: var(--hint);
+}
+.lock::after {
+  content: ""; position: absolute; left: 5px; top: 3px; width: 2px; height: 3px;
+  border: 1px solid var(--hint); border-bottom: 0; border-radius: 3px 3px 0 0;
+}
+.color-note { margin: 0 6px 10px; }
+.lang-seg { margin-bottom: 4px; }

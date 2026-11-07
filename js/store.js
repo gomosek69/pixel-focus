@@ -12,6 +12,7 @@
   'use strict';
 
   const u = PF.u;
+  const t = (...a) => PF.t(...a);
   const ACTS = PF.ACTS;
   const UNCODE = {};
   Object.keys(ACTS).forEach((k) => { UNCODE[ACTS[k].code] = k; });
@@ -23,7 +24,7 @@
   const START_BALANCE = 0;      // стартовый баланс
   const KEYS_WARN = 800;        // с этого числа ячеек облака показываем предупреждение
 
-  const S = { records: [], active: null, char: null };
+  const S = { records: [], active: null, char: null, prefs: { lang: 'auto' } };
 
   // Персонаж по умолчанию: внешность, надетые вещи и список покупок [[id, цена, время]].
   function defaultChar() {
@@ -31,6 +32,7 @@
       g: 'm', skin: 1, eyes: 0, hc: 1,
       eq: { hair: 'hair_short', top: 'top_tee', pants: 'pants_jeans', shoes: 'shoes_keds', acc: null },
       buy: [],
+      col: {}, // выбранный цвет вещи: { id вещи: номер цвета в палитре }
     };
   }
   S.char = defaultChar();
@@ -95,6 +97,7 @@
         names.forEach((n) => {
           if (n === 'state') payload[n] = stateDoc();
           else if (n === 'char') payload[n] = S.char;
+          else if (n === 'prefs') payload[n] = S.prefs;
           else payload[n] = monthDoc(n);
         });
         return docs.writeDocs(payload);
@@ -119,6 +122,9 @@
     S.records = [];
     S.active = null;
     S.char = sanitizeChar(loaded.char);
+    const pr = loaded.prefs || {};
+    S.prefs = { lang: ['auto', 'ru', 'en'].includes(pr.lang) ? pr.lang : 'auto' };
+    if (PF.i18n) PF.i18n.setLang(S.prefs.lang);
     Object.keys(loaded).forEach((name) => {
       if (!name.startsWith('rec_') || !Array.isArray(loaded[name])) return;
       loaded[name].forEach((arr) => {
@@ -178,22 +184,22 @@
   // ---------- проверки ----------
 
   function describe(r) {
-    return '«' + ACTS[r.a].name + '» ' + u.dayTitle(u.dayKey(r.s)).toLowerCase() +
+    return '«' + t(ACTS[r.a].name) + '» ' + u.dayTitle(u.dayKey(r.s)).toLowerCase() +
       ' ' + u.hm(r.s) + '–' + u.hm(r.e);
   }
 
   // Проверить запись. Возвращает текст ошибки или null, если всё в порядке.
   function validate(rec, excludeId, manual) {
-    if (!ACTS[rec.a]) return 'Выберите занятие.';
-    if (!Number.isFinite(rec.s) || !Number.isFinite(rec.e)) return 'Укажите дату и время.';
-    if (rec.e <= rec.s) return 'Конец должен быть позже начала.';
-    if (rec.e - rec.s < MIN_SESSION) return 'Запись должна длиться хотя бы минуту.';
-    if (manual && rec.e - rec.s > MAX_MANUAL) return 'Запись не может быть длиннее суток.';
-    if (rec.e > u.nowSec()) return 'Нельзя добавить запись, которая заканчивается в будущем.';
+    if (!ACTS[rec.a]) return t('Выберите занятие.');
+    if (!Number.isFinite(rec.s) || !Number.isFinite(rec.e)) return t('Укажите дату и время.');
+    if (rec.e <= rec.s) return t('Конец должен быть позже начала.');
+    if (rec.e - rec.s < MIN_SESSION) return t('Запись должна длиться хотя бы минуту.');
+    if (manual && rec.e - rec.s > MAX_MANUAL) return t('Запись не может быть длиннее суток.');
+    if (rec.e > u.nowSec()) return t('Нельзя добавить запись, которая заканчивается в будущем.');
     const clash = S.records.find((r) => r.id !== excludeId && rec.s < r.e && r.s < rec.e);
-    if (clash) return 'Пересекается с записью ' + describe(clash) + '.';
+    if (clash) return t('Пересекается с записью {0}.', describe(clash));
     if (S.active && rec.e > S.active.s) {
-      return 'Пересекается с текущим занятием «' + ACTS[S.active.a].name + '» (идёт с ' + u.hm(S.active.s) + ').';
+      return t('Пересекается с текущим занятием «{0}» (идёт с {1}).', t(ACTS[S.active.a].name), u.hm(S.active.s));
     }
     return null;
   }
@@ -264,7 +270,7 @@
 
   function update(id, data) {
     const old = S.records.find((r) => r.id === id);
-    if (!old) return 'Запись не найдена.';
+    if (!old) return t('Запись не найдена.');
     const rec = Object.assign({}, old, data);
     const err = validate(rec, id, true);
     if (err) return err;
@@ -313,7 +319,14 @@
       hc: intIn(ch.hc, 5, d.hc),
       eq: Object.assign({}, d.eq),
       buy: [],
+      col: {},
     };
+    if (ch.col && typeof ch.col === 'object') {
+      Object.keys(ch.col).forEach((id) => {
+        const v = ch.col[id];
+        if (Number.isInteger(v) && v >= 0 && v < 64) out.col[id] = v;
+      });
+    }
     (Array.isArray(ch.buy) ? ch.buy : []).forEach((b) => {
       if (Array.isArray(b) && typeof b[0] === 'string' && Number.isFinite(b[1]) && b[1] >= 0 &&
           !out.buy.some((x) => x[0] === b[0])) {
@@ -348,15 +361,41 @@
     return eq;
   }
 
-  function look(override) {
+  // Купленный цвет вещи? Покупка цвета хранится в списке покупок как "id#номер".
+  const ownsColor = (id, idx) => S.char.buy.some((b) => b[0] === id + '#' + idx);
+
+  // Выбранный цвет вещи (только если он куплен), иначе null — исходный цвет.
+  function colorOf(id) {
+    const v = S.char.col[id];
+    return Number.isInteger(v) && ownsColor(id, v) ? v : null;
+  }
+
+  // Описание внешности для рисования.
+  // override: { cat: id } — примерить вещь; colOverride: { cat: номер цвета } — примерить цвет.
+  function look(override, colOverride) {
     const eq = equipped();
     if (override) Object.assign(eq, override);
-    return { g: S.char.g, skin: S.char.skin, eyes: S.char.eyes, hc: S.char.hc, eq };
+    const col = {};
+    Object.keys(eq).forEach((cat) => { if (eq[cat]) col[cat] = colorOf(eq[cat]); });
+    if (colOverride) Object.assign(col, colOverride);
+    return { g: S.char.g, skin: S.char.skin, eyes: S.char.eyes, hc: S.char.hc, eq, col };
   }
 
   function charChanged() {
     dirty.add('char');
     changed();
+  }
+
+  // Настройки приложения (язык; позже — тема и цвета).
+  function setPref(key, value) {
+    if (key === 'lang') {
+      if (!['auto', 'ru', 'en'].includes(value)) return;
+      S.prefs.lang = value;
+      PF.i18n.setLang(value);
+      dirty.add('prefs');
+      emit('lang');
+      changed();
+    }
   }
 
   function setLook(field, value) {
@@ -369,12 +408,46 @@
   // Почему нельзя купить (или null, если можно).
   function cantBuy(id) {
     const it = item(id);
-    if (!it || it.rarity === 'base') return 'Эту вещь нельзя купить.';
-    if (owns(id)) return 'Уже куплено.';
+    if (!it || it.rarity === 'base') return t('Эту вещь нельзя купить.');
+    if (owns(id)) return t('Уже куплено.');
     const bal = Math.round(balance());
-    if (bal < 0) return 'Баланс отрицательный — покупки недоступны.';
-    if (bal < it.price) return 'Не хватает ' + (it.price - bal).toLocaleString('ru-RU') + ' мон.';
+    if (bal < 0) return t('Баланс отрицательный — покупки недоступны.');
+    if (bal < it.price) return t('Не хватает {0} мон.', u.num(it.price - bal));
     return null;
+  }
+
+  function cantPay(price) {
+    const bal = Math.round(balance());
+    if (bal < 0) return t('Баланс отрицательный — покупки недоступны.');
+    if (bal < price) return t('Не хватает {0} мон.', u.num(price - bal));
+    return null;
+  }
+
+  // Почему нельзя купить цвет (или null).
+  function cantBuyColor(id, idx) {
+    const it = item(id);
+    if (!it || !it.pal || !PF.char.PALETTE[idx]) return t('Эту вещь нельзя перекрасить.');
+    if (!owns(id)) return t('Сначала купите вещь.');
+    if (ownsColor(id, idx)) return t('Уже куплено.');
+    return cantPay(PF.char.colorPrice(it));
+  }
+
+  // Купить цвет и сразу применить.
+  function buyColor(id, idx) {
+    const err = cantBuyColor(id, idx);
+    if (err) return err;
+    S.char.buy.push([id + '#' + idx, PF.char.colorPrice(item(id)), u.nowSec()]);
+    S.char.col[id] = idx;
+    charChanged();
+    return null;
+  }
+
+  // Выбрать купленный цвет (null — исходный).
+  function setColor(id, idx) {
+    if (idx === null) delete S.char.col[id];
+    else if (ownsColor(id, idx)) S.char.col[id] = idx;
+    else return;
+    charChanged();
   }
 
   // Купить и сразу надеть. Возвращает текст ошибки или null.
@@ -441,10 +514,10 @@
   function parseBackup(text) {
     let obj;
     try { obj = JSON.parse(text); } catch (e) {
-      throw new Error('Не получилось прочитать файл: это не резервная копия.');
+      throw new Error(t('Не получилось прочитать файл: это не резервная копия.'));
     }
     if (!obj || obj.app !== 'pixel-focus' || !obj.data) {
-      throw new Error('Это не резервная копия Pixel Focus.');
+      throw new Error(t('Это не резервная копия Pixel Focus.'));
     }
     const records = [];
     (obj.data.records || []).forEach((r) => {
@@ -510,10 +583,16 @@
     equipped,
     look,
     setLook,
+    setPref,
     cantBuy,
     buy,
     equip,
     unequip,
+    ownsColor,
+    colorOf,
+    cantBuyColor,
+    buyColor,
+    setColor,
     start,
     stop,
     confirmStill,
