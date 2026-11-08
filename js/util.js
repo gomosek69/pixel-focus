@@ -17,13 +17,31 @@ window.PF = window.PF || {};
   const EN_WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const isEn = () => PF.i18n && PF.i18n.lang === 'en';
 
-  // Три занятия. code — короткая буква для компактного хранения.
+  // Три основных занятия. code — короткая буква для компактного хранения.
+  // Свои занятия пользователя (store.js) добавляются в этот же объект с полем custom: true;
+  // их ключ и код — один и тот же id вида «c» + буквы/цифры.
   PF.ACTS = {
     work: { code: 'w', name: 'Работа', color: 'var(--act-work)', icon: 'work', rate: 0.3 },
     study: { code: 's', name: 'Учёба', color: 'var(--act-study)', icon: 'study', rate: 1 },
     rest: { code: 'r', name: 'Отдых', color: 'var(--act-rest)', icon: 'rest', rate: -1 },
   };
+  PF.BASE_ACTS = ['work', 'study', 'rest'];
+  // Занятия, которые можно запускать: основные + свои (кроме удалённых). Обновляет store.js.
   PF.ACT_ORDER = ['work', 'study', 'rest'];
+  // Название занятия (обычный текст, не HTML): основные переводятся, свои — как ввёл пользователь.
+  PF.actName = (k) => {
+    const a = PF.ACTS[k];
+    if (!a) return '?';
+    return a.custom ? a.name : PF.t(a.name);
+  };
+  // Свои занятия: лимиты, цвета и значки на выбор.
+  PF.CUSTOM_MAX = 10;
+  PF.RATE_MIN = -2;
+  PF.RATE_MAX = 2;
+  PF.ACT_COLORS = ['#8b5cf6', '#ec4899', '#ef4444', '#eab308', '#22c55e', '#06b6d4',
+    '#6366f1', '#84cc16', '#d946ef', '#0ea5e9', '#a16207', '#64748b'];
+  PF.ACT_ICONS = ['star', 'sport', 'game', 'music', 'code', 'art', 'home', 'heart',
+    'food', 'moon', 'phone', 'cart', 'pen', 'globe', 'work', 'study', 'rest'];
 
   // Основные цвета приложения на выбор (Настройки → Оформление).
   PF.ACCENTS = [
@@ -121,6 +139,14 @@ window.PF = window.PF || {};
       const abs = PF.u.num(Math.abs(n));
       if (n < 0) return '−' + abs;
       return (signed && n > 0 ? '+' : '') + abs;
+    },
+
+    // Цена в минуту со знаком: "+0,3", "−1", "0".
+    rate(r) {
+      const v = Math.round(r * 10) / 10;
+      if (!v) return '0';
+      const n = String(Math.abs(v));
+      return (v > 0 ? '+' : '−') + (isEn() ? n : n.replace('.', ','));
     },
 
     // "1:05:23"

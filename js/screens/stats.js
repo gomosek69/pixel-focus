@@ -9,7 +9,9 @@
   const ui = PF.ui;
   const store = PF.store;
   const ACTS = PF.ACTS;
-  const ORDER = PF.ACT_ORDER;
+  // Занятия на графике: основные всегда, свои — если ещё не удалены или есть время за период.
+  let ORDER = PF.BASE_ACTS.slice();
+  const actName = (k) => esc(PF.actName(k));
   const t = PF.t;
   const esc = u.esc;
 
@@ -78,10 +80,17 @@
     const recs = store.S.records.filter((r) => r.e > p.s && r.s < p.e);
     const a = store.S.active;
     if (a && a.s < p.e && now > p.s) recs.push({ a: a.a, s: a.s, e: now });
-    const totals = { work: 0, study: 0, rest: 0 };
-    p.cols.forEach((c) => { c.v = { work: 0, study: 0, rest: 0 }; });
+    const all = store.allActs();
+    const zero = () => { const o = {}; all.forEach((k) => { o[k] = 0; }); return o; };
+    const totals = zero();
+    const coins = zero();
+    p.cols.forEach((c) => { c.v = zero(); });
+    if (a && a.s < p.e && now > p.s) recs[recs.length - 1].k = store.rateOf(a);
     recs.forEach((r) => {
-      totals[r.a] += Math.max(0, Math.min(r.e, p.e) - Math.max(r.s, p.s));
+      if (!(r.a in totals)) return;
+      const inP = Math.max(0, Math.min(r.e, p.e) - Math.max(r.s, p.s));
+      totals[r.a] += inP;
+      coins[r.a] += store.rateOf(r) * inP / 60;
       p.cols.forEach((c) => {
         const ov = Math.min(r.e, c.e) - Math.max(r.s, c.s);
         if (ov > 0) c.v[r.a] += ov;
@@ -89,7 +98,9 @@
     });
     const spent = store.S.char.buy.reduce((sum, b) => sum + (b[2] >= p.s && b[2] < p.e ? b[1] : 0), 0);
     p.totals = totals;
+    p.coins = coins;
     p.spent = spent;
+    ORDER = all.filter((k) => !PF.ACTS[k].custom || !PF.ACTS[k].hidden || totals[k] > 0);
     p.isCurrent = p.s <= now && now < p.e;
     p.isFuture = p.s > now;
     return p;
@@ -135,7 +146,7 @@
       '</div>' +
       '<div class="card chart-card">' +
       '  <div class="legend">' + ORDER.map((k) =>
-        '<span class="lg"><i style="background:' + ACTS[k].color + '"></i>' + t(ACTS[k].name) + '</span>').join('') + '</div>' +
+        '<span class="lg"><i style="background:' + ACTS[k].color + '"></i>' + actName(k) + '</span>').join('') + '</div>' +
       '  <div class="chart" id="chart"></div>' +
       '</div>' +
       '<div class="group-title">' + t('Итоги за период') + '</div>' +
@@ -150,10 +161,10 @@
     }
     let earned = 0, lost = 0;
     const rows = ORDER.map((k) => {
-      const coins = ACTS[k].rate * p.totals[k] / 60;
+      const coins = p.coins[k];
       if (coins > 0) earned += coins; else lost += coins;
       const share = total ? Math.round(p.totals[k] / total * 100) : 0;
-      return '<div class="tot-row"><span class="tot-name"><i style="background:' + ACTS[k].color + '"></i>' + t(ACTS[k].name) + '</span>' +
+      return '<div class="tot-row"><span class="tot-name"><i style="background:' + ACTS[k].color + '"></i>' + actName(k) + '</span>' +
         '<span class="tot-time">' + (p.totals[k] ? u.durShort(p.totals[k]) : '—') + '</span>' +
         '<span class="tot-share">' + share + '%</span>' +
         '<span class="tot-coins' + (Math.round(coins) < 0 ? ' neg' : '') + '">' + u.coins(coins, true) + '</span></div>';
@@ -164,7 +175,7 @@
       '<span class="tot-share"></span><span class="tot-coins"></span></div></div>' +
       '<div class="card pad coins-sum">' +
       '  <div class="kv"><span>' + t('Заработано') + '</span><b class="pos">' + u.coins(earned, true) + '</b></div>' +
-      '  <div class="kv"><span>' + t('Потеряно на отдыхе') + '</span><b class="' + (Math.round(lost) < 0 ? 'neg' : '') + '">' + u.coins(lost, true) + '</b></div>' +
+      '  <div class="kv"><span>' + t(ORDER.some((k) => PF.ACTS[k].custom && (p.coins[k] < 0 || PF.ACTS[k].rate < 0)) ? 'Потеряно' : 'Потеряно на отдыхе') + '</span><b class="' + (Math.round(lost) < 0 ? 'neg' : '') + '">' + u.coins(lost, true) + '</b></div>' +
       '  <div class="kv kv-total"><span>' + t('Итого за период') + '</span><b class="' + (Math.round(net) < 0 ? 'neg' : '') + '">' +
       ui.coin() + u.coins(net, true) + '</b></div>' +
       '</div>' + spentHtml(p);
@@ -285,7 +296,7 @@
   }
 
   const tipRow = (k, value) =>
-    '<div class="tip-row"><i style="background:' + ACTS[k].color + '"></i>' + t(ACTS[k].name) + '<span>' + value + '</span></div>';
+    '<div class="tip-row"><i style="background:' + ACTS[k].color + '"></i>' + actName(k) + '<span>' + value + '</span></div>';
 
   // Заливка градиентом цвета занятия: светлее сверху, насыщеннее снизу.
   let gradN = 0;
