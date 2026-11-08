@@ -9,7 +9,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '22';
+  var VERSION = '23';
 
   var CSS = ['css/style.css'];
   var JS = [

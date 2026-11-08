@@ -43,7 +43,7 @@
         cols.push({
           s: sec(new Date(y, m, d, h)), e: sec(new Date(y, m, d, h + 1)),
           label: h % 6 === 0 ? String(h) : '',
-          tip: u.pad(h) + ':00–' + u.pad((h + 1) % 24) + ':00',
+          tip: u.clock(h, 0) + '–' + u.clock((h + 1) % 24, 0),
         });
       }
       title = u.dayTitle(u.dayKey(s));

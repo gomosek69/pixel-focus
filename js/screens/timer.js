@@ -425,16 +425,16 @@
     if (isEdit) {
       a = rec.a;
       date = u.dayKey(rec.s);
-      ts = u.hm(rec.s);
-      te = u.hm(rec.e);
+      ts = u.hmInput(rec.s);
+      te = u.hmInput(rec.e);
     } else {
       // По умолчанию: последний час до сейчас (или до начала текущего занятия).
       const end = store.S.active ? store.S.active.s : now;
       const endMin = end - (end % 60);
       a = 'work';
       date = u.dayKey(endMin - 3600);
-      ts = u.hm(endMin - 3600);
-      te = u.hm(endMin);
+      ts = u.hmInput(endMin - 3600);
+      te = u.hmInput(endMin);
     }
     const tooLong = isEdit && rec.e - rec.s > 24 * 3600;
 

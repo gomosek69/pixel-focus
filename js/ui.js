@@ -298,5 +298,42 @@
     document.addEventListener('dragstart', (e) => { if (hScroller(e.target)) e.preventDefault(); });
   })();
 
-  PF.ui = { syncBackButton, icon, coin, segs, floatCoins, openSheet, closeTopSheet, hasOpenSheet, confirm, toast, haptic };
+  // ---------- поля даты и времени в выбранном формате ----------
+  // Встроенные поля браузера показывают дату по-своему (часто по-американски). Поверх поля
+  // выводится подпись в формате из настроек, а само поле остаётся под ней: нажатие
+  // открывает обычный выбор даты/времени.
+  function dtText(inp) {
+    const v = inp.value;
+    if (!v) return '';
+    if (inp.type === 'date') return PF.u.dateStr(v);
+    if (inp.type === 'time') return PF.u.clockStr(v);
+    const [d, tm] = v.split('T');
+    return PF.u.dateStr(d) + ', ' + PF.u.clockStr(tm);
+  }
+  function wrapDate(inp) {
+    if (inp.dataset.dt) return;
+    inp.dataset.dt = '1';
+    const wrap = document.createElement('span');
+    wrap.className = 'dt-wrap';
+    inp.parentNode.insertBefore(wrap, inp);
+    wrap.appendChild(inp);
+    const lab = document.createElement('span');
+    lab.className = 'dt-text';
+    wrap.appendChild(lab);
+    const upd = () => { lab.textContent = dtText(inp); wrap.classList.toggle('empty', !inp.value); };
+    ['input', 'change', 'blur', 'focus'].forEach((ev) => inp.addEventListener(ev, upd));
+    // значение могли поставить из кода — проверяем изредка, пока поле на странице
+    const tick = setInterval(() => { if (!inp.isConnected) clearInterval(tick); else upd(); }, 400);
+    upd();
+  }
+  function wrapDates(scope) {
+    (scope || document).querySelectorAll('input[type=date],input[type=time],input[type=datetime-local]').forEach(wrapDate);
+  }
+  if (window.MutationObserver) {
+    new MutationObserver((list) => {
+      if (list.some((m) => m.addedNodes.length)) wrapDates(document.body);
+    }).observe(document.documentElement, { childList: true, subtree: true });
+  }
+
+  PF.ui = { wrapDates, syncBackButton, icon, coin, segs, floatCoins, openSheet, closeTopSheet, hasOpenSheet, confirm, toast, haptic };
 })(window.PF);
