@@ -272,7 +272,7 @@
     const G = k.G, skin = mat(k.skin, true), H = G.H;
     const S = { edge: true, soft: true };
     c.cur = P.legl; rr(c, G.lx0, G.ly0, G.lx1, G.ly1, 2, skin, S); ell(c, 26.5, 59, 4, 2.2, skin, S);
-    c.cur = P.legr; rr(c, G.rx0, G.ly0, G.rx1, G.ly1, 2, skin, S); ell(c, 37.5, 59, 4, 2.2, skin, S);
+    c.cur = P.legr; rr(c, G.rx0, G.ly0, G.rx1, G.ly1, 2, skin, S); ell(c, 36.5, 59, 4, 2.2, skin, S);
     c.cur = P.larm; rr(c, G.ax0, G.ay0, G.ax1, G.ay1, 2, skin, S); ell(c, G.ax0 + 1.8, G.ay1 + 1.5, 2.6, 2.4, skin, S);
     c.cur = P.rarm; rr(c, G.bx0, G.ay0, G.bx1, G.ay1, 2, skin, S); ell(c, G.bx0 + 2.2, G.ay1 + 1.5, 2.6, 2.4, skin, S);
     c.cur = P.torso; torsoShape(c, G, skin, { soft: true });
@@ -351,11 +351,13 @@
     return poly(c, [[G.tx0 + 1, 44], [G.tx1 - 1, 44], [G.tx1 - 1 + flare, bottom], [G.tx0 + 1 - flare, bottom]], m, Object.assign({ edge: true }, opts));
   }
   // Обувь на обеих ногах. top — верх (56 — обычная, меньше — высокая), sole — цвет подошвы.
+  // Обычная обувь начинается чуть ниже края штанин (с y=57, верх скруглён), поэтому
+  // штанина лежит на ботинке, а не «проходит сквозь» него. Правая нога — под правой штаниной.
   function shoes(c, m, top, sole, each) {
-    [[P.legl, 22, 31], [P.legr, 33, 42]].forEach(([part, x0, x1], i) => {
+    [[P.legl, 22, 31], [P.legr, 32, 41]].forEach(([part, x0, x1], i) => {
       c.cur = part;
       if (top < 56) rr(c, x0 + 1, top, x1 - 1, 58, 2, m, { edge: true });
-      rr(c, x0, 56, x1, 60, 2, m, { edge: true });
+      rr(c, x0, top < 56 ? 56 : 57, x1, 60, 2, m, { edge: true });
       if (sole) line(c, x0, 61, x1, 61, mat(sole), 1);
       if (each) each(x0, x1, i);
     });
@@ -624,7 +626,8 @@
         for (let y = 34; y <= 45; y += 3) {
           for (let x = 12; x <= 52; x++) {
             const i = y * N + x;
-            if (c.m[i] === W) c.set(x, y, S, c.t[i] >= 2 ? 2 : 1);
+            // меняем только цвет: пиксель остаётся в своей части тела (рукав двигается с рукой)
+            if (c.m[i] === W) { c.m[i] = S; c.t[i] = c.t[i] >= 2 ? 2 : 1; }
           }
         }
         neckRound(c, k, S);
@@ -921,7 +924,7 @@
       pal: { C: '#8a5a2b', D: '#6e4520' },
       draw(c, k, p) {
         const m = mat(p.C);
-        [[P.legl, 22, 31], [P.legr, 33, 42]].forEach(([part, x0, x1]) => {
+        [[P.legl, 22, 31], [P.legr, 32, 41]].forEach(([part, x0, x1]) => {
           c.cur = part; rr(c, x0, 60, x1, 61, 1, mat(p.D), { tone: 2 });
           line(c, x0 + 1, 58, x1 - 1, 58, m, 1); line(c, x0 + 4, 56, x0 + 4, 59, m, 1);
         });
@@ -930,7 +933,7 @@
       pal: { C: '#3ec1d3', D: '#2b97a6' },
       draw(c, k, p) {
         const m = mat(p.C);
-        [[P.legl, 22, 31], [P.legr, 33, 42]].forEach(([part, x0, x1]) => {
+        [[P.legl, 22, 31], [P.legr, 32, 41]].forEach(([part, x0, x1]) => {
           c.cur = part; rr(c, x0, 60, x1, 61, 1, m, { tone: 1 }); line(c, x0 + 4, 59, x0 + 2, 57, m, 2); line(c, x0 + 4, 59, x0 + 7, 57, m, 2);
         });
       } },
@@ -984,7 +987,7 @@
       pal: { C: '#d23a4b', D: '#a52a39' },
       draw(c, k, p) {
         const m = mat(p.C);
-        [[P.legl, 22, 31], [P.legr, 33, 42]].forEach(([part, x0, x1], i) => {
+        [[P.legl, 22, 31], [P.legr, 32, 41]].forEach(([part, x0, x1], i) => {
           c.cur = part;
           poly(c, [[x0 + 1, 57], [x1 - 1, 57], [x1 - 1, 60], [x0 + 1, 59]], m, { edge: true });
           rr(c, i ? x1 - 2 : x0 + 1, 60, i ? x1 - 1 : x0 + 2, 62, 0, mat(p.D), { tone: 2 });
@@ -1012,7 +1015,7 @@
       pal: { G: '#e8c547', D: '#b8962f' },
       draw(c, k, p) {
         const G = mat(p.G);
-        [[P.legl, 22, 31], [P.legr, 33, 42]].forEach(([part, x0, x1], i) => {
+        [[P.legl, 22, 31], [P.legr, 32, 41]].forEach(([part, x0, x1], i) => {
           c.cur = part; rr(c, x0, 60, x1, 61, 1, mat(p.D), { tone: 2 });
           line(c, x0 + 1, 58, x1 - 1, 58, G, 0); line(c, x0 + 1, 55, x1 - 1, 57, G, 1);
           // крылышко у пятки: два кадра (вверх / вниз)
