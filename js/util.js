@@ -43,6 +43,20 @@ window.PF = window.PF || {};
   PF.ACT_ICONS = ['star', 'sport', 'game', 'music', 'code', 'art', 'home', 'heart',
     'food', 'moon', 'phone', 'cart', 'pen', 'globe', 'work', 'study', 'rest'];
 
+  // Трекеры во вкладке «Я». Значения хранятся в единицах: вес — кг, сон — часы, вода — стаканы (250 мл).
+  // lim — допустимый диапазон (у давления — для верхнего и нижнего).
+  PF.TRACKERS = {
+    weight: { name: 'Вес', icon: 'scale', color: '#e5484d', agg: 'avg', step: 0.1, lim: [20, 400] },
+    pressure: { name: 'Давление', icon: 'heart', color: '#d6409f', agg: 'avg', step: 1, lim: [50, 260], lim2: [30, 180] },
+    pulse: { name: 'Пульс', icon: 'pulse', color: '#f76b15', agg: 'avg', step: 1, lim: [25, 250] },
+    sleep: { name: 'Сон', icon: 'moon', color: '#6e56cf', agg: 'sum', step: 0.01, lim: [0, 24] },
+    water: { name: 'Вода', icon: 'drop', color: '#0090ff', agg: 'sum', step: 1, lim: [0, 50] },
+    mood: { name: 'Настроение', icon: 'smile', color: '#e2a400', agg: 'avg', step: 1, lim: [1, 5] },
+    steps: { name: 'Шаги', icon: 'steps', color: '#30a46c', agg: 'sum', step: 1, lim: [0, 200000] },
+  };
+  PF.TRACKER_IDS = ['weight', 'pressure', 'pulse', 'sleep', 'water', 'mood', 'steps'];
+  PF.LB = 0.45359237; // 1 фунт в кг
+
   // Основные цвета приложения на выбор (Настройки → Оформление).
   PF.ACCENTS = [
     { ru: 'Индиго', en: 'Indigo', hex: '#6366f1' },
@@ -173,6 +187,11 @@ window.PF = window.PF || {};
       }
       if (y !== new Date().getFullYear()) return d + ' ' + MONTHS_GEN[m - 1] + ' ' + y;
       return WEEKDAYS[dt.getDay()] + ', ' + d + ' ' + MONTHS_GEN[m - 1];
+    },
+
+    // Короткий день недели: "Пн" / "Mo"
+    weekdayShort(dt) {
+      return (isEn() ? ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'] : ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'])[dt.getDay()];
     },
 
     // "8 нояб."

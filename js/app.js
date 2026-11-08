@@ -7,8 +7,10 @@
     { id: 'stats', label: 'Статистика', icon: 'stats' },
     { id: 'char', label: 'Персонаж', icon: 'char' },
     { id: 'tasks', label: 'Задачи', icon: 'tasks' },
-    { id: 'settings', label: 'Настройки', icon: 'settings' },
+    { id: 'me', label: 'Я', icon: 'me' },
   ];
+  // Экран настроек открывается шестерёнкой на главном экране (его нет на нижней панели).
+  let prevTab = 'timer';
 
   let current = 'timer';
   let lastDay = '';
@@ -26,7 +28,7 @@
       tg.expand();
       if (tg.isVersionAtLeast('7.7') && tg.disableVerticalSwipes) tg.disableVerticalSwipes();
       if (tg.isVersionAtLeast('6.1')) {
-        tg.BackButton.onClick(() => PF.ui.closeTopSheet());
+        tg.BackButton.onClick(() => { if (!PF.ui.closeTopSheet()) back(); });
       }
       document.documentElement.dataset.scheme = tg.colorScheme || 'light';
       tg.onEvent('themeChanged', () => applyTheme());
@@ -84,6 +86,7 @@
       PF.ui.icon(t.icon) + '<span>' + PF.t(t.label) + '</span></button>').join('');
     const ind = nav.querySelector('.tab-ind');
     const on = nav.querySelector('.tab.on');
+    ind.style.opacity = on ? '' : '0';
     if (!on) return;
     const x = on.offsetLeft + 4, w = on.offsetWidth - 8;
     if (tabIndPos) {
@@ -125,12 +128,23 @@
       });
     }
     PF.ui.segs(el);
+    PF.ui.syncBackButton();
   }
 
+  // Порядок экранов для направления анимации: настройки — «справа» от всех вкладок.
+  const orderOf = (id) => (id === 'settings' ? TABS.length : TABS.findIndex((x) => x.id === id));
+
   function switchTab(id) {
-    if (!PF.screens[id] || id === current) return;
-    const from = TABS.findIndex((x) => x.id === current);
-    const to = TABS.findIndex((x) => x.id === id);
+    if (!PF.screens[id]) return;
+    if (id === current) {
+      // повторное нажатие на вкладку «Я» внутри трекера — вернуться к списку
+      if (PF.screens[id].back && PF.screens[id].back()) PF.ui.haptic('light');
+      return;
+    }
+    const from = orderOf(current);
+    const to = orderOf(id);
+    if (id === 'settings') prevTab = current;
+    if (PF.screens[current] && PF.screens[current].reset && current !== 'timer') PF.screens[current].reset();
     current = id;
     if (PF.screens.timer.reset) PF.screens.timer.reset();
     renderTabbar();
@@ -235,7 +249,19 @@
     checkAsk();
   }
 
-  PF.app = { switchTab };
+  // «Назад»: из трекера — к списку, из настроек — на прошлую вкладку.
+  function back() {
+    const scr = PF.screens[current];
+    if (scr && scr.back && scr.back()) return true;
+    if (current === 'settings') { switchTab(prevTab || 'timer'); return true; }
+    return false;
+  }
+  function canBack() {
+    const scr = PF.screens[current];
+    return current === 'settings' || !!(scr && scr.canBack && scr.canBack());
+  }
+
+  PF.app = { switchTab, back, canBack, get current() { return current; } };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
   else start();

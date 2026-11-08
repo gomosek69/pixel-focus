@@ -34,7 +34,8 @@
     const langBtn = (v, label) =>
       '<button class="seg-btn' + (lang === v ? ' on' : '') + '" data-lang="' + v + '">' + label + '</button>';
     root.innerHTML =
-      '<header class="top"><h1>' + t('Настройки') + '</h1></header>' +
+      '<header class="top top-row tr-head"><button class="icon-btn" data-action="back" aria-label="' + u.esc(t('Назад')) + '">' + ui.icon('back') + '</button>' +
+      '<h1>' + t('Настройки') + '</h1><span></span></header>' +
       (PF.storageWarning ? '<div class="card warn">' + u.esc(t(PF.storageWarning)) + '</div>' : '') +
       (store.storageNearlyFull()
         ? '<div class="card warn"><b>' + t('Облако Telegram почти заполнено: {0} из 1024 ячеек.', store.keyCount()) + '</b><br>' +
@@ -120,6 +121,7 @@
     if (!btn) return;
     const action = btn.dataset.action;
 
+    if (action === 'back') { PF.app.back(); return; }
     if (action === 'name') { PF.greet.askName(false); return; }
     if (action === 'download') {
       await store.flush();
