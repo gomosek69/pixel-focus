@@ -1,13 +1,16 @@
 // Данные приложения и все действия с ними.
 //
 // В памяти:
-//   records — завершённые записи { id, a: 'work'|'study'|'rest', s: начало, e: конец, t?: название задачи }
-//   active  — текущее занятие { a, s: время начала, ask: когда спросить «ты всё ещё…», t? }
+//   records — завершённые записи { id, a: 'work'|'study'|'rest'|id своего занятия, s: начало, e: конец,
+//             t?: название задачи, k?: цена в минуту (только у своих занятий — цена на момент записи) }
+//   active  — текущее занятие { a, s: время начала, ask: когда спросить «ты всё ещё…», t?, k? }
+//   acts    — свои занятия { id, name, color, icon, rate, hidden }
 // Время везде в секундах.
 //
 // В хранилище:
 //   документ state         — текущее занятие;
-//   документы rec_ГГГГ_ММ   — записи месяца (по дате начала) в компактном виде [id, буква, s, e, t?].
+//   документы rec_ГГГГ_ММ   — записи месяца (по дате начала) в компактном виде [id, буква, s, e, t?, k?];
+//   документ acts          — свои занятия [id, название, цвет, значок, цена, 0/1 удалено].
 (function (PF) {
   'use strict';
 
@@ -15,7 +18,7 @@
   const t = (...a) => PF.t(...a);
   const ACTS = PF.ACTS;
   const UNCODE = {};
-  Object.keys(ACTS).forEach((k) => { UNCODE[ACTS[k].code] = k; });
+  PF.BASE_ACTS.forEach((k) => { UNCODE[ACTS[k].code] = k; });
 
   const ASK_FIRST = 2 * 3600;   // первый вопрос «Ты всё ещё занимаешься?» через 2 часа
   const ASK_REPEAT = 2 * 3600;  // после ответа «да» — снова через 2 часа
@@ -24,7 +27,7 @@
   const START_BALANCE = 0;      // стартовый баланс
   const KEYS_WARN = 800;        // с этого числа ячеек облака показываем предупреждение
 
-  const S = { records: [], active: null, char: null, prefs: defaultPrefs(), tasks: [] };
+  const S = { records: [], active: null, char: null, prefs: defaultPrefs(), tasks: [], acts: [] };
 
   // Настройки по умолчанию.
   // lang: auto|ru|en; theme: auto|light|dark; accent: 'auto' или номер цвета; bg: номер фона; chart: вид графика.
@@ -73,17 +76,122 @@
 
   function encodeRec(r) {
     const arr = [r.id, ACTS[r.a].code, r.s, r.e];
-    if (r.t) arr.push(r.t);
+    if (r.t || Number.isFinite(r.k)) arr.push(r.t || '');
+    if (Number.isFinite(r.k)) arr.push(r.k);
     return arr;
   }
 
-  function decodeRec(arr) {
+  function decodeRec(arr, codes) {
     if (!Array.isArray(arr)) return null;
-    const [id, code, s, e, t] = arr;
-    if (!UNCODE[code] || !Number.isFinite(s) || !Number.isFinite(e) || e <= s) return null;
-    const r = { id: String(id), a: UNCODE[code], s, e };
+    const [id, code, s, e, t, k] = arr;
+    const a = (codes || UNCODE)[code];
+    if (!a || !Number.isFinite(s) || !Number.isFinite(e) || e <= s) return null;
+    const r = { id: String(id), a, s, e };
     if (t) r.t = String(t);
+    if (Number.isFinite(k) && a.charAt(0) === 'c') r.k = clampRate(k);
     return r;
+  }
+
+  // ---------- свои занятия ----------
+
+  const clampRate = (v) => Math.max(PF.RATE_MIN, Math.min(PF.RATE_MAX, Math.round(Number(v) * 10) / 10)) || 0;
+  const ACT_ID = /^c[a-z0-9]{3,12}$/;
+
+  const encodeAct = (x) => [x.id, x.name, x.color, x.icon, x.rate, x.hidden ? 1 : 0];
+
+  function decodeAct(arr) {
+    if (!Array.isArray(arr) || !ACT_ID.test(arr[0]) || typeof arr[1] !== 'string' || !arr[1].trim()) return null;
+    return {
+      id: arr[0],
+      name: arr[1].trim().slice(0, 24),
+      color: /^#[0-9a-f]{6}$/i.test(arr[2]) ? arr[2] : PF.ACT_COLORS[0],
+      icon: PF.ACT_ICONS.includes(arr[3]) ? arr[3] : 'star',
+      rate: Number.isFinite(arr[4]) ? clampRate(arr[4]) : 0,
+      hidden: !!arr[5],
+    };
+  }
+
+  // Перенести свои занятия в PF.ACTS и обновить список кнопок PF.ACT_ORDER.
+  function syncActs() {
+    Object.keys(ACTS).forEach((k) => { if (ACTS[k].custom) { delete ACTS[k]; delete UNCODE[k]; } });
+    S.acts.forEach((x) => {
+      ACTS[x.id] = { code: x.id, name: x.name, color: x.color, icon: x.icon, rate: x.rate, custom: true, hidden: x.hidden };
+      UNCODE[x.id] = x.id;
+    });
+    PF.ACT_ORDER.length = 0;
+    PF.BASE_ACTS.concat(S.acts.filter((x) => !x.hidden).map((x) => x.id)).forEach((k) => PF.ACT_ORDER.push(k));
+  }
+
+  // Все занятия, включая удалённые свои (для истории и статистики).
+  const allActs = () => PF.BASE_ACTS.concat(S.acts.map((x) => x.id));
+  const visibleCustom = () => S.acts.filter((x) => !x.hidden);
+
+  // Цвет для нового занятия: первый из списка, который ещё не занят.
+  function nextColor() {
+    const used = visibleCustom().map((x) => x.color.toLowerCase());
+    return PF.ACT_COLORS.find((c) => !used.includes(c)) || PF.ACT_COLORS[S.acts.length % PF.ACT_COLORS.length];
+  }
+
+  // Проверить поля своего занятия. Возвращает текст ошибки или null.
+  function checkAct(f, exceptId) {
+    const name = String(f.name || '').trim();
+    if (!name) return t('Введите название занятия.');
+    if (name.length > 24) return t('Название слишком длинное (не больше 24 символов).');
+    const low = name.toLowerCase();
+    const taken = PF.ACT_ORDER.some((k) => k !== exceptId && PF.actName(k).toLowerCase() === low);
+    if (taken) return t('Занятие с таким названием уже есть.');
+    if (!Number.isFinite(Number(f.rate))) return t('Укажите цену в минуту.');
+    return null;
+  }
+
+  const actFields = (f) => ({
+    name: String(f.name).trim(),
+    color: /^#[0-9a-f]{6}$/i.test(f.color) ? f.color : nextColor(),
+    icon: PF.ACT_ICONS.includes(f.icon) ? f.icon : 'star',
+    rate: clampRate(f.rate),
+  });
+
+  function actsChanged() {
+    syncActs();
+    dirty.add('acts');
+    changed();
+  }
+
+  // Создать своё занятие. Возвращает { err } или { id }.
+  function addAct(f) {
+    if (visibleCustom().length >= PF.CUSTOM_MAX) return { err: t('Можно создать не больше {0} своих занятий.', PF.CUSTOM_MAX) };
+    const err = checkAct(f);
+    if (err) return { err };
+    let id;
+    do { id = 'c' + Math.random().toString(36).slice(2, 7); } while (!ACT_ID.test(id) || ACTS[id]);
+    S.acts.push(Object.assign({ id, hidden: false }, actFields(f)));
+    actsChanged();
+    return { id };
+  }
+
+  // Изменить своё занятие (название, цвет, значок, цену). Новая цена действует только
+  // для новых записей: у старых записей и у уже идущего занятия цена сохранена отдельно.
+  function updateAct(id, f) {
+    const x = S.acts.find((a) => a.id === id);
+    if (!x) return t('Занятие не найдено.');
+    const full = Object.assign({ name: x.name, color: x.color, icon: x.icon, rate: x.rate }, f);
+    const err = checkAct(full, id);
+    if (err) return err;
+    Object.assign(x, actFields(full));
+    actsChanged();
+    return null;
+  }
+
+  // Удалить своё занятие. Если по нему есть записи, оно только скрывается:
+  // история, статистика и монеты остаются.
+  function removeAct(id) {
+    const i = S.acts.findIndex((a) => a.id === id);
+    if (i < 0) return t('Занятие не найдено.');
+    if (S.active && S.active.a === id) return t('Сначала завершите это занятие.');
+    if (S.records.some((r) => r.a === id)) S.acts[i].hidden = true;
+    else S.acts.splice(i, 1);
+    actsChanged();
+    return null;
   }
 
   const sortRecs = () => S.records.sort((x, y) => x.s - y.s);
@@ -122,6 +230,7 @@
           else if (n === 'char') payload[n] = S.char;
           else if (n === 'prefs') payload[n] = S.prefs;
           else if (n === 'tasks') payload[n] = S.tasks.length ? S.tasks.map(encodeTask) : null;
+          else if (n === 'acts') payload[n] = S.acts.length ? S.acts.map(encodeAct) : null;
           else payload[n] = monthDoc(n);
         });
         return docs.writeDocs(payload);
@@ -149,6 +258,8 @@
     S.tasks = (Array.isArray(loaded.tasks) ? loaded.tasks : []).map(decodeTask).filter(Boolean);
     S.prefs = sanitizePrefs(loaded.prefs);
     if (PF.i18n) PF.i18n.setLang(S.prefs.lang);
+    S.acts = decodeActs(loaded.acts);
+    syncActs();
     Object.keys(loaded).forEach((name) => {
       if (!name.startsWith('rec_') || !Array.isArray(loaded[name])) return;
       loaded[name].forEach((arr) => {
@@ -162,8 +273,18 @@
       S.active = { a: a.a, s: a.s, ask: Number.isFinite(a.ask) ? a.ask : a.s + ASK_FIRST };
       if (a.t) S.active.t = String(a.t);
       if (a.taskId) S.active.taskId = String(a.taskId);
+      if (ACTS[a.a].custom) S.active.k = Number.isFinite(a.k) ? clampRate(a.k) : ACTS[a.a].rate;
     }
     sortRecs();
+  }
+
+  function decodeActs(list) {
+    const out = [];
+    (Array.isArray(list) ? list : []).forEach((arr) => {
+      const x = decodeAct(arr);
+      if (x && !out.some((y) => y.id === x.id)) out.push(x);
+    });
+    return out;
   }
 
   async function init() {
@@ -209,7 +330,7 @@
   // ---------- проверки ----------
 
   function describe(r) {
-    return '«' + t(ACTS[r.a].name) + '» ' + u.dayTitle(u.dayKey(r.s)).toLowerCase() +
+    return '«' + PF.actName(r.a) + '» ' + u.dayTitle(u.dayKey(r.s)).toLowerCase() +
       ' ' + u.hm(r.s) + '–' + u.hm(r.e);
   }
 
@@ -224,7 +345,7 @@
     const clash = S.records.find((r) => r.id !== excludeId && rec.s < r.e && r.s < rec.e);
     if (clash) return t('Пересекается с записью {0}.', describe(clash));
     if (S.active && rec.e > S.active.s) {
-      return t('Пересекается с текущим занятием «{0}» (идёт с {1}).', t(ACTS[S.active.a].name), u.hm(S.active.s));
+      return t('Пересекается с текущим занятием «{0}» (идёт с {1}).', PF.actName(S.active.a), u.hm(S.active.s));
     }
     return null;
   }
@@ -242,6 +363,7 @@
     if (end - a.s < MIN_SESSION) return { short: true };
     const rec = { id: u.uid(), a: a.a, s: a.s, e: end };
     if (a.t) rec.t = a.t;
+    if (Number.isFinite(a.k)) rec.k = a.k;
     S.records.push(rec);
     sortRecs();
     markRec(rec);
@@ -251,7 +373,7 @@
   // Начать занятие. Текущее (если есть) автоматически завершается.
   // opts.t — название задачи (для запуска из вкладки «Задачи»).
   function start(a, opts) {
-    if (!ACTS[a]) return {};
+    if (!ACTS[a] || ACTS[a].hidden) return {};
     const t = opts && opts.t ? String(opts.t) : '';
     const taskId = opts && opts.taskId ? String(opts.taskId) : '';
     if (S.active && S.active.a === a && (S.active.t || '') === t && (S.active.taskId || '') === taskId) return {};
@@ -260,6 +382,7 @@
     S.active = { a, s: now, ask: now + ASK_FIRST };
     if (t) S.active.t = t;
     if (taskId) S.active.taskId = taskId;
+    if (ACTS[a].custom) S.active.k = ACTS[a].rate; // цена на момент старта
     markState();
     changed();
     return res;
@@ -286,6 +409,7 @@
   function add(data) {
     const rec = { id: u.uid(), a: data.a, s: data.s, e: data.e };
     if (data.t) rec.t = data.t;
+    if (ACTS[data.a] && ACTS[data.a].custom) rec.k = ACTS[data.a].rate;
     const err = validate(rec, null, true);
     if (err) return err;
     S.records.push(rec);
@@ -298,11 +422,15 @@
   function update(id, data) {
     const old = S.records.find((r) => r.id === id);
     if (!old) return t('Запись не найдена.');
+    data = Object.assign({}, data);
+    // Сменили занятие — цена берётся текущая; то же занятие — цена записи сохраняется.
+    if (data.a && data.a !== old.a) data.k = ACTS[data.a] && ACTS[data.a].custom ? ACTS[data.a].rate : undefined;
     const rec = Object.assign({}, old, data);
     const err = validate(rec, id, true);
     if (err) return err;
     markRec(old);
     Object.assign(old, data);
+    if (!Number.isFinite(old.k)) delete old.k;
     sortRecs();
     markRec(old);
     changed();
@@ -326,7 +454,7 @@
       if (!map.has(k)) map.set(k, { key: k, recs: [], totals: { work: 0, study: 0, rest: 0 } });
       const d = map.get(k);
       d.recs.push(r);
-      d.totals[r.a] += r.e - r.s;
+      d.totals[r.a] = (d.totals[r.a] || 0) + r.e - r.s;
     }
     return [...map.values()];
   }
@@ -509,13 +637,15 @@
   // поэтому правка и удаление записей сразу его пересчитывают.
 
   // Монеты за завершённую запись — точно, с дробями (ставка × минуты).
-  const recCoins = (r) => ACTS[r.a].rate * (r.e - r.s) / 60;
+  // У своих занятий цена хранится в самой записи (цена на момент записи).
+  const rateOf = (r) => (Number.isFinite(r.k) ? r.k : ACTS[r.a] ? ACTS[r.a].rate : 0);
+  const recCoins = (r) => rateOf(r) * (r.e - r.s) / 60;
 
   // Монеты за текущее занятие — по целым минутам, поэтому баланс меняется раз в минуту.
   function activeCoins() {
     const a = S.active;
     if (!a) return 0;
-    return ACTS[a.a].rate * Math.floor(Math.max(0, u.nowSec() - a.s) / 60);
+    return rateOf(a) * Math.floor(Math.max(0, u.nowSec() - a.s) / 60);
   }
 
   function balance() {
@@ -610,6 +740,7 @@
         active: S.active ? Object.assign({}, S.active) : null,
         char: JSON.parse(JSON.stringify(S.char)),
         tasks: S.tasks.map(encodeTask),
+        acts: S.acts.map(encodeAct),
       },
     };
   }
@@ -623,22 +754,27 @@
     if (!obj || obj.app !== 'pixel-focus' || !obj.data) {
       throw new Error(t('Это не резервная копия Pixel Focus.'));
     }
+    const acts = decodeActs(obj.data.acts);
+    const known = (k) => PF.BASE_ACTS.includes(k) || acts.some((x) => x.id === k);
+    const actRate = (k) => (acts.find((x) => x.id === k) || {}).rate || 0;
     const records = [];
     (obj.data.records || []).forEach((r) => {
-      if (!r || !ACTS[r.a] || !Number.isFinite(r.s) || !Number.isFinite(r.e) || r.e <= r.s) return;
+      if (!r || !known(r.a) || !Number.isFinite(r.s) || !Number.isFinite(r.e) || r.e <= r.s) return;
       const rec = { id: String(r.id || u.uid()), a: r.a, s: Math.floor(r.s), e: Math.floor(r.e) };
       if (r.t) rec.t = String(r.t).slice(0, 200);
+      if (r.a.charAt(0) === 'c') rec.k = Number.isFinite(r.k) ? clampRate(r.k) : actRate(r.a);
       records.push(rec);
     });
     let active = null;
     const a = obj.data.active;
-    if (a && ACTS[a.a] && Number.isFinite(a.s)) {
+    if (a && known(a.a) && Number.isFinite(a.s)) {
       active = { a: a.a, s: Math.floor(a.s), ask: Number.isFinite(a.ask) ? a.ask : a.s + ASK_FIRST };
       if (a.t) active.t = String(a.t).slice(0, 200);
       if (a.taskId) active.taskId = String(a.taskId);
+      if (a.a.charAt(0) === 'c') active.k = Number.isFinite(a.k) ? clampRate(a.k) : actRate(a.a);
     }
     const tasks = (Array.isArray(obj.data.tasks) ? obj.data.tasks : []).map(decodeTask).filter(Boolean);
-    return { records, active, char: sanitizeChar(obj.data.char), tasks, exportedAt: obj.exportedAt };
+    return { records, active, char: sanitizeChar(obj.data.char), tasks, acts, exportedAt: obj.exportedAt };
   }
 
   function markAllDocs() {
@@ -647,6 +783,7 @@
     markState();
     dirty.add('char');
     dirty.add('tasks');
+    dirty.add('acts');
   }
 
   // Заменить все данные данными из копии.
@@ -656,6 +793,8 @@
     S.active = parsed.active;
     S.char = parsed.char || defaultChar();
     S.tasks = (parsed.tasks || []).slice();
+    S.acts = (parsed.acts || []).slice();
+    syncActs();
     sortRecs();
     markAllDocs();
     changed();
@@ -668,6 +807,8 @@
     S.active = null;
     S.char = defaultChar();
     S.tasks = [];
+    S.acts = [];
+    syncActs();
     changed();
     return flush();
   }
@@ -685,7 +826,14 @@
     KEYS_WARN,
     storageNearlyFull: () => !!docs && docs.backendName === 'cloud' && docs.keyCount() >= KEYS_WARN,
     recCoins,
+    rateOf,
     activeCoins,
+    allActs,
+    visibleCustom,
+    nextColor,
+    addAct,
+    updateAct,
+    removeAct,
     balance,
     spent,
     owns,

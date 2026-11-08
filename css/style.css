@@ -908,3 +908,58 @@ button:active:not(:disabled) { transform: scale(0.96); }
 @keyframes splashChar { from { opacity: 0; transform: translateY(18px) scale(0.85); } to { opacity: 1; transform: none; } }
 @keyframes splashText { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 @keyframes splashLoad { from { width: 0; } to { width: 100%; } }
+
+/* ---------- свои занятия ---------- */
+
+.acts-head { margin-top: 4px; }
+.acts-custom { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.acts-custom:empty { display: none; }
+.act-btn.small { min-height: 60px; padding: 10px 12px; gap: 10px; min-width: 0; }
+.act-btn.small .act-ic { width: 36px; height: 36px; border-radius: 10px; }
+.act-btn.small .act-ic .ic { width: 18px; height: 18px; }
+.act-btn.small .act-name { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.act-btn.small .act-sub { font-size: 12px; }
+.act-add {
+  display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 60px;
+  border-radius: var(--radius); border: 2px dashed color-mix(in srgb, var(--hint) 45%, transparent);
+  color: var(--hint); font-weight: 600; font-size: 14px; background: transparent;
+}
+.act-add:active { transform: scale(.98); }
+.act-add .ic { width: 20px; height: 20px; }
+.acts-custom > .act-add:only-child { grid-column: 1 / -1; }
+
+.act-row { padding: 8px 10px 8px 14px; }
+.act-row-main { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; text-align: left; background: none; padding: 4px 0; }
+.act-row-main .rate-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lock-rate { display: flex; align-items: center; gap: 6px; color: var(--hint); padding-right: 6px; }
+.lock-rate .ic { width: 15px; height: 15px; }
+.stepper { display: flex; align-items: center; gap: 4px; }
+.stepper b { min-width: 42px; text-align: center; font-variant-numeric: tabular-nums; }
+.step {
+  width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--hint) 14%, transparent); color: var(--text);
+}
+.step .ic { width: 16px; height: 16px; }
+.step:disabled { opacity: .35; }
+.step:active:not(:disabled) { transform: scale(.92); }
+
+.act-preview { display: flex; justify-content: center; margin: 0 0 14px; }
+.act-preview .act-btn { width: 220px; pointer-events: none; }
+.rate-pick { display: flex; align-items: center; gap: 10px; }
+.rate-pick input[type=range] { flex: 1; accent-color: var(--primary); background: none; border: 0; box-shadow: none; padding: 0; height: 32px; min-height: 0; }
+.rate-hint { font-size: 13px; color: var(--hint); margin-top: 4px; }
+.rate-hint.pos { color: #16a34a; }
+.rate-hint.neg { color: var(--danger, #dc2626); }
+.icon-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 6px; }
+.icon-opt {
+  height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  color: var(--hint); background: color-mix(in srgb, var(--hint) 10%, transparent);
+}
+.icon-opt .ic { width: 20px; height: 20px; }
+.icon-opt.on { color: #fff; background: var(--primary); }
+.act-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.act-chips .seg-btn {
+  flex: none; padding: 8px 12px; border-radius: 999px; font-size: 14px;
+  background: color-mix(in srgb, var(--c) 12%, transparent); color: var(--text);
+}
+.act-chips .seg-btn.on { background: var(--c); color: #fff; }

@@ -97,7 +97,7 @@
       '<button class="task-main" data-action="edit" data-id="' + esc(k.id) + '">' +
       '<span class="task-title">' + esc(k.title) + '</span>' +
       (running
-        ? '<span class="task-meta run" style="color:' + ACTS[a.a].color + '">' + t('{0} идёт', t(ACTS[a.a].name)) +
+        ? '<span class="task-meta run" style="color:' + ACTS[a.a].color + '">' + t('{0} идёт', esc(PF.actName(a.a))) +
           ' · <span class="task-dur" data-start="' + a.s + '">' + u.durClock(u.nowSec() - a.s) + '</span></span>'
         : (when ? '<span class="task-meta' + (overdue ? ' overdue' : '') + '">' + (overdue ? t('просрочено') + ' · ' : '') + esc(when) + '</span>' : '')) +
       '</button>' +
@@ -128,19 +128,19 @@
       const res = store.toggleTask(id);
       if (res.rec) ui.floatCoins(store.recCoins(res.rec));
       ui.haptic(k.done ? 'success' : 'light');
-      if (res.rec) ui.toast(t('Задача выполнена. Записано: {0}, {1}', t(ACTS[res.rec.a].name), u.durShort(res.rec.e - res.rec.s)));
+      if (res.rec) ui.toast(t('Задача выполнена. Записано: {0}, {1}', PF.actName(res.rec.a), u.durShort(res.rec.e - res.rec.s)));
       else if (res.short) ui.toast(t('Занятие было короче минуты и не сохранено'));
     } else if (action === 'start' && k) {
       const res = store.start(btn.dataset.a, { t: k.title, taskId: k.id });
       ui.haptic('medium');
-      ui.toast(t('Начато: {0} — {1}', t(ACTS[btn.dataset.a].name), k.title));
+      ui.toast(t('Начато: {0} — {1}', PF.actName(btn.dataset.a), k.title));
       if (res.short) setTimeout(() => ui.toast(t('Предыдущее занятие было короче минуты и не сохранено')), 2600);
     } else if (action === 'stop') {
       const res = store.stop();
       if (res.rec) ui.floatCoins(store.recCoins(res.rec));
       ui.haptic('light');
       if (res.short) ui.toast(t('Занятие было короче минуты и не сохранено'));
-      else if (res.rec) ui.toast(t('Записано: {0}, {1} ({2} мон.)', t(ACTS[res.rec.a].name), u.durShort(res.rec.e - res.rec.s), u.coins(store.recCoins(res.rec), true)));
+      else if (res.rec) ui.toast(t('Записано: {0}, {1} ({2} мон.)', PF.actName(res.rec.a), u.durShort(res.rec.e - res.rec.s), u.coins(store.recCoins(res.rec), true)));
     } else if (action === 'clear') {
       clearDone();
     }
