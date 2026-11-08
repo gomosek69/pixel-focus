@@ -963,3 +963,10 @@ button:active:not(:disabled) { transform: scale(0.96); }
   background: color-mix(in srgb, var(--c) 12%, transparent); color: var(--text);
 }
 .act-chips .seg-btn.on { background: var(--c); color: #fff; }
+
+/* перетаскивание лент мышью (компьютер) */
+@media (hover: hover) and (pointer: fine) {
+  .cat-tabs, .chart-types { cursor: grab; }
+  .cat-tabs.dragging, .chart-types.dragging { cursor: grabbing; user-select: none; scroll-behavior: auto; }
+  .dragging * { cursor: grabbing; }
+}
