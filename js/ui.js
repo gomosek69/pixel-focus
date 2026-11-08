@@ -234,5 +234,61 @@
     setTimeout(() => el.remove(), 1700);
   }
 
+  // ---------- перетаскивание мышью горизонтальных лент (компьютер) ----------
+  // На телефоне ленты (виды графиков, вкладки магазина) листаются пальцем. На компьютере
+  // их можно тянуть зажатой левой кнопкой мыши или крутить колёсиком.
+  function hScroller(el) {
+    for (; el && el !== document.body; el = el.parentElement) {
+      if (el.scrollWidth > el.clientWidth + 1) {
+        const ox = getComputedStyle(el).overflowX;
+        if (ox === 'auto' || ox === 'scroll') return el;
+      }
+    }
+    return null;
+  }
+  (function dragScroll() {
+    let box = null, startX = 0, startLeft = 0, moved = false;
+    document.addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'mouse' || e.button !== 0) return;
+      box = hScroller(e.target);
+      if (!box) return;
+      startX = e.clientX; startLeft = box.scrollLeft; moved = false;
+    });
+    document.addEventListener('pointermove', (e) => {
+      if (!box) return;
+      if (!(e.buttons & 1)) { box = null; return; }
+      const dx = e.clientX - startX;
+      if (!moved && Math.abs(dx) < 6) return;
+      if (!moved) { moved = true; box.classList.add('dragging'); }
+      box.scrollLeft = startLeft - dx;
+      e.preventDefault();
+    });
+    const end = () => {
+      if (!box) return;
+      box.classList.remove('dragging');
+      box = null;
+      // после перетаскивания не считать отпускание кнопки нажатием на вкладку
+      if (moved) {
+        const stop = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
+        document.addEventListener('click', stop, { capture: true, once: true });
+        setTimeout(() => document.removeEventListener('click', stop, true), 0);
+      }
+    };
+    document.addEventListener('pointerup', end);
+    document.addEventListener('pointercancel', end);
+    // колёсико мыши листает ленту вбок
+    document.addEventListener('wheel', (e) => {
+      if (e.ctrlKey || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      const el = hScroller(e.target);
+      if (!el) return;
+      const max = el.scrollWidth - el.clientWidth;
+      if ((e.deltaY < 0 && el.scrollLeft <= 0) || (e.deltaY > 0 && el.scrollLeft >= max - 1)) return;
+      el.scrollLeft += e.deltaY;
+      e.preventDefault();
+    }, { passive: false });
+    // ссылки и картинки внутри ленты не должны «утаскиваться» браузером
+    document.addEventListener('dragstart', (e) => { if (hScroller(e.target)) e.preventDefault(); });
+  })();
+
   PF.ui = { icon, coin, segs, floatCoins, openSheet, closeTopSheet, hasOpenSheet, confirm, toast, haptic };
 })(window.PF);
