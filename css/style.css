@@ -332,13 +332,16 @@ textarea.code {
 
 .pix { display: block; image-rendering: pixelated; }
 .fx-pulse { animation: fxPulse 1.8s ease-in-out infinite; }
+.fx-shimmer { animation: fxShimmer 3.2s ease-in-out infinite; }
+@keyframes fxShimmer { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
 .fx-a { animation: fxA .5s steps(1) infinite; }
 .fx-b { animation: fxB .5s steps(1) infinite; }
 @keyframes fxPulse { 50% { opacity: .35; } }
 @keyframes fxA { 0% { opacity: 1; } 50% { opacity: 0; } }
 @keyframes fxB { 0% { opacity: 0; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
-  .fx-pulse, .fx-a, .fx-b { animation: none; }
+  .fx-pulse, .fx-a, .fx-b, .fx-shimmer { animation: none; }
+  .fx-shimmer { opacity: 0; }
   .fx-b { opacity: 0; }
 }
 
@@ -1050,8 +1053,43 @@ button:active:not(:disabled) { transform: scale(0.96); }
   display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 2px; border-radius: 14px;
   background: color-mix(in srgb, var(--hint) 10%, transparent); font-size: 11px; color: var(--hint);
 }
-.mood-em { font-size: 28px; line-height: 1; }
-.mood-opt.on { background: color-mix(in srgb, #e2a400 22%, transparent); color: var(--text); box-shadow: 0 0 0 2px #e2a400; }
+.mood-opt.on { background: color-mix(in srgb, var(--primary) 14%, transparent); color: var(--text); box-shadow: 0 0 0 2px var(--primary); }
 @media (prefers-reduced-motion: reduce) {
   .tr-line.draw, .tr-chart .bar.grow { animation: none; stroke-dashoffset: 0; }
 }
+
+/* цвета волос: платные и легендарные */
+.hair-row { align-items: flex-start; }
+.hair-row .swatches { flex: 1; justify-content: flex-end; }
+.swatch { position: relative; }
+.swatch.locked { opacity: .55; }
+.swatch .sw-price {
+  position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%);
+  font-size: 9px; font-weight: 700; line-height: 1; padding: 2px 4px; border-radius: 6px;
+  background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, .18); white-space: nowrap;
+}
+.swatch.locked .sw-price { opacity: 1; }
+.swatch.legend { background: var(--sw); background-size: 200% 200%; animation: swLegend 3s ease-in-out infinite; }
+.swatch.legend.locked { opacity: .8; }
+@keyframes swLegend { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+@media (prefers-reduced-motion: reduce) { .swatch.legend { animation: none; } }
+
+/* настроение: минималистичные лица и отметки чувств */
+.mood-face { width: 1.15em; height: 1.15em; vertical-align: -0.2em; display: inline-block; }
+.me-val .mood-face { width: 26px; height: 26px; vertical-align: -6px; }
+.tr-big .mood-face { width: 46px; height: 46px; vertical-align: -10px; }
+.rec-name .mood-face { width: 18px; height: 18px; vertical-align: -4px; }
+.mood-face.big { width: 32px; height: 32px; }
+.mood-face.inline { width: 18px; height: 18px; vertical-align: -4px; }
+.feel-pick { display: flex; flex-wrap: wrap; gap: 6px; }
+.feel-chip {
+  display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  color: #b07a00; background: color-mix(in srgb, #e2a400 16%, transparent);
+}
+.feel-chip.sad { color: #5b6b8c; background: color-mix(in srgb, #7c8aa5 18%, transparent); }
+.feel-chip.pick { padding: 7px 12px; font-size: 13px; opacity: .75; }
+.feel-chip.pick.on { opacity: 1; color: #fff; background: #e2a400; }
+.feel-chip.pick.sad.on { background: #6f7f9f; }
+.feel-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.kv-feel { align-items: flex-start; }
+.feel-top { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }

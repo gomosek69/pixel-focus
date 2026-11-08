@@ -482,7 +482,7 @@
       g: ch.g === 'f' ? 'f' : 'm',
       skin: intIn(ch.skin, 5, d.skin),
       eyes: intIn(ch.eyes, 5, d.eyes),
-      hc: intIn(ch.hc, 5, d.hc),
+      hc: intIn(ch.hc, PF.char ? PF.char.HAIR.length - 1 : 5, d.hc),
       eq: Object.assign({}, d.eq),
       buy: [],
       col: {},
@@ -544,7 +544,7 @@
     const col = {};
     Object.keys(eq).forEach((cat) => { if (eq[cat]) col[cat] = colorOf(eq[cat]); });
     if (colOverride) Object.assign(col, colOverride);
-    return { g: S.char.g, skin: S.char.skin, eyes: S.char.eyes, hc: S.char.hc, eq, col };
+    return { g: S.char.g, skin: S.char.skin, eyes: S.char.eyes, hc: ownsHair(S.char.hc) ? S.char.hc : 1, eq, col };
   }
 
   function charChanged() {
@@ -568,9 +568,31 @@
 
   function setLook(field, value) {
     if (field === 'g') S.char.g = value === 'f' ? 'f' : 'm';
-    else if (field === 'skin' || field === 'eyes' || field === 'hc') S.char[field] = intIn(value, 5, S.char[field]);
+    else if (field === 'skin' || field === 'eyes') S.char[field] = intIn(value, 5, S.char[field]);
+    else if (field === 'hc') { if (!ownsHair(value)) return; S.char.hc = value; }
     else return;
     charChanged();
+  }
+
+  // Цвета волос: бесплатные или купленные (покупка хранится как "hc#номер").
+  function ownsHair(i) {
+    const pr = PF.char.HAIR_PRICE[i];
+    if (pr === undefined) return false;
+    return pr === 0 || S.char.buy.some((b) => b[0] === 'hc#' + i);
+  }
+  function cantBuyHair(i) {
+    const pr = PF.char.HAIR_PRICE[i];
+    if (!pr) return t('Этот цвет бесплатный.');
+    if (ownsHair(i)) return t('Уже куплено.');
+    return cantPay(pr);
+  }
+  function buyHair(i) {
+    const err = cantBuyHair(i);
+    if (err) return err;
+    S.char.buy.push(['hc#' + i, PF.char.HAIR_PRICE[i], u.nowSec()]);
+    S.char.hc = i;
+    charChanged();
+    return null;
   }
 
   // Почему нельзя купить (или null, если можно).
@@ -757,6 +779,8 @@
     const v = roundTo(e.v, tr.step);
     if (v < tr.lim[0] || v > tr.lim[1]) return null;
     const out = { t: Math.floor(e.t), v };
+    // настроение: необязательные отметки чувств (биты)
+    if (id === 'mood' && Number.isInteger(e.v2) && e.v2 > 0 && e.v2 < 1 << 16) out.v2 = e.v2;
     if (id === 'pressure') {
       if (!Number.isFinite(e.v2)) return null;
       const v2 = Math.round(e.v2);
@@ -987,6 +1011,9 @@
     unequip,
     ownsColor,
     colorOf,
+    ownsHair,
+    cantBuyHair,
+    buyHair,
     cantBuyColor,
     buyColor,
     setColor,
