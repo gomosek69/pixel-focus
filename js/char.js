@@ -300,8 +300,10 @@
     c.cur = P.larm; rr(c, G.ax0, G.ay0, G.ax1, G.ay1, 2, skin, S); ell(c, G.ax0 + 1.8, G.ay1 + 1.5, 2.6, 2.4, skin, S);
     c.cur = P.rarm; rr(c, G.bx0, G.ay0, G.bx1, G.ay1, 2, skin, S); ell(c, G.bx0 + 2.2, G.ay1 + 1.5, 2.6, 2.4, skin, S);
     c.cur = P.torso; torsoShape(c, G, skin, { soft: true });
-    c.cur = P.head;
+    // шея относится к туловищу: при наклоне головы в танце она не «выезжает» на воротник
+    c.cur = P.torso;
     rr(c, 29, 28, 35, 33, 1, skin, { minTone: 2, maxTone: 2 });
+    c.cur = P.head;
     ell(c, H.cx - H.rx + 0.5, H.cy + 2, 2.4, 3.2, skin, S);
     ell(c, H.cx + H.rx - 0.5, H.cy + 2, 2.4, 3.2, skin, S);
     ell(c, H.cx, H.cy, H.rx, H.ry, skin, S);
@@ -503,12 +505,15 @@
       const wv = o.wave ? Math.sin(x * 0.9) * 1.6 : 0;
       const b = bottom + wv - Math.max(0, dx - w + 3) * 1.4 - (o.point ? Math.abs(Math.sin(x * 0.75)) * 2.5 : 0);
       if (dx > w || y > b) return null;
+      // ниже плеч волосы не шире спины: прячутся за туловищем и не торчат по бокам,
+      // когда руки поднимаются в танце (длину спереди показывают пряди на плечах)
+      if (y > H.cy + 13 && dx > 8.5) return null;
       const nx = (x - cx) / w;
       return [nx, 0.1, Math.sqrt(Math.max(0, 1 - nx * nx))];
     }, h, { edge: true, edgeTone: 3, minTone: 1 });
     // нижняя часть волос за спиной двигается с туловищем, а не с головой
     // (иначе при наклоне головы в танце волосы «разлетаются» за руки и ноги)
-    mask.forEach((i) => { if (YI(i) >= H.cy + 5) c.part[i] = P.torso; });
+    mask.forEach((i) => { if (YI(i) >= H.cy + 13) c.part[i] = P.torso; });
     // пряди вдоль волос
     for (let x = cx - w + 3; x <= cx + w - 3; x += 4) {
       for (let y = H.cy + 4; y < bottom - 3; y++) {
@@ -610,9 +615,8 @@
     { id: 'hair_curly', cat: 'hair', name: 'Кудри', en: 'Curly', style: 'classic', rarity: 'common', price: 200,
       back(c, k) {
         const H = k.G.H, h = mat(k.hair);
-        // пышные локоны за плечами (двигаются с туловищем)
-        c.cur = P.torso;
-        [[17, 30], [47, 30], [16, 36], [48, 36], [18, 41], [46, 41]].forEach(([x, y]) => ell(c, x, y, 4.2, 3.6, h, { edge: true, edgeTone: 3 }));
+        // пышные локоны у плеч (двигаются с головой и не торчат отдельно от причёски)
+        [[17, 29], [47, 29], [18, 33], [46, 33]].forEach(([x, y]) => ell(c, x, y, 4.2, 3.6, h, { edge: true, edgeTone: 3 }));
         void H;
       },
       draw(c, k) {
@@ -735,6 +739,8 @@
         poly(c, [[16, 18], [11, 12], [17, 23]], sk, { edge: true, soft: true }); poly(c, [[48, 18], [53, 12], [47, 23]], sk, { edge: true, soft: true });
         // обруч с камнем
         line(c, 20, 11, 44, 11, mat('#e8c547'), 0); ell(c, 32, 11, 1.6, 1.3, mat('#3ec1d3'), { tone: 0 });
+        frontLock(c, k, -1, 44, 4);
+        frontLock(c, k, 1, 44, 4);
         partLines(c, r.h, 32, 5, [[22, 13], [42, 13]]);
       } },
     { id: 'hair_messy', cat: 'hair', name: 'Растрёпанные', en: 'Messy', style: 'street', rarity: 'common', price: 230,
@@ -1716,8 +1722,8 @@
     ] },
     dab: { dur: 1.6, frames: [
       { all: T(0, 0) },
-      { larm: R(-140), rarm: R(-118), head: T(3, 1) + R(-13), all: T(0, 1) },
-      { larm: R(-140), rarm: R(-118), head: T(3, 1) + R(-13), all: T(0, 1) },
+      { larm: R(-140), rarm: R(-118), head: T(2, -1) + R(-12), all: T(0, 1) },
+      { larm: R(-140), rarm: R(-118), head: T(2, -1) + R(-12), all: T(0, 1) },
       { all: T(0, 0) },
     ] },
     robot: { dur: 1.4, frames: [
@@ -1995,7 +2001,7 @@
   // Точки вращения частей тела: плечи, бёдра, шея.
   function pivots(G) {
     return {
-      legl: [27, 47], legr: [36, 47], torso: [32, 46], head: [32, 31],
+      legl: [27, 47], legr: [36, 47], torso: [32, 46], head: [32, 30],
       larm: [G.ax0 + 2, 34], rarm: [G.bx0 + 2, 34],
     };
   }
