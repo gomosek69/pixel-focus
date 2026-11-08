@@ -38,9 +38,7 @@
   // Применить тему, основной цвет и фон из настроек.
   function applyTheme() {
     const root = document.documentElement;
-    // Без Premium действуют бесплатные варианты оформления (выбор сохраняется на будущее).
-    const prem = PF.premium && PF.premium.isPremium();
-    const pr = Object.assign({}, PF.store.S.prefs, prem ? {} : { accent: 'auto', bg: 0, glass: 'liquid' });
+    const pr = PF.store.S.prefs;
     const tg = PF.tg;
     if (pr.theme === 'auto') {
       delete root.dataset.theme;
@@ -149,12 +147,6 @@
     animateTheme.t = setTimeout(() => root.classList.remove('theme-anim'), 500);
   }
 
-  // Ежедневный бонус подписчика (+30 монет раз в день).
-  function dailyBonus() {
-    const n = PF.store.claimDailyBonus();
-    if (n) setTimeout(() => { PF.ui.floatCoins(n); PF.ui.toast(PF.t('🎁 Ежедневный бонус Premium: +{0} монет', n)); }, 900);
-  }
-
   function checkAsk() {
     if (PF.store.needsAsk()) PF.askStill();
   }
@@ -227,15 +219,10 @@
 
     // Когда приложение снова показывают — проверить «ты всё ещё…», при скрытии — сохранить.
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') { renderScreen(); checkAsk(); PF.premium.refresh(); dailyBonus(); }
+      if (document.visibilityState === 'visible') { renderScreen(); checkAsk(); }
       else PF.store.flush();
     });
     window.addEventListener('pagehide', () => PF.store.flush());
-
-    // Premium: проверить статус на сервере; при изменении — перерисовать всё.
-    PF.premium.on(() => { applyTheme(); renderTabbar(); renderScreen(); dailyBonus(); });
-    PF.premium.refresh();
-    dailyBonus();
 
     setInterval(tick, 1000);
     if (PF.migratedNotice) PF.ui.toast(PF.t(PF.migratedNotice), true);

@@ -17,6 +17,3 @@ Telegram Mini App для учёта времени.
 - `js/char.js` — пиксельный персонаж и каталог вещей
 - `js/screens/*.js` — вкладки (таймер, статистика, персонаж, задачи, настройки)
 - `js/app.js` — запуск и нижняя панель
-- `js/config.js` — адрес сервера (PF.API_URL)
-- `js/premium.js` — подписка Premium, окно Premium, режим разработчика
-- `worker/worker.js` — сервер на Cloudflare Workers (бот, оплата Stars, статус Premium); инструкция — `worker/README.md`

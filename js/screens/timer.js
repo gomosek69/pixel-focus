@@ -9,9 +9,6 @@
   const esc = u.esc;
   const t = PF.t;
   const actName = (k) => t(ACTS[k].name);
-  const prem = () => PF.premium.isPremium();
-  const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
-  const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* нет */ } };
 
   const PAGE_DAYS = 14;
   let daysShown = PAGE_DAYS;
@@ -28,7 +25,6 @@
       '  <button class="balance" id="balance" data-action="rates"></button></header>' +
       '<section id="current"></section>' +
       '<section class="acts" id="acts"></section>' +
-      bannerHtml() +
       '<section class="hist">' +
       '  <div class="sec-head"><h2>' + t('История') + '</h2>' +
       '    <button class="btn-small" data-action="add">' + ui.icon('plus') + t('Запись') + '</button></div>' +
@@ -45,7 +41,7 @@
     const el = root.querySelector('#balance');
     const b = store.balance();
     lastBalance = Math.round(b);
-    el.innerHTML = ui.coin() + '<span>' + u.coins(b) + '</span>' + (prem() ? '<i class="pstar">⭐</i>' : '');
+    el.innerHTML = ui.coin() + '<span>' + u.coins(b) + '</span>';
     el.classList.toggle('neg', Math.round(b) < 0);
   }
 
@@ -89,7 +85,7 @@
 
   // Маленький персонаж на главном экране (нажатие открывает вкладку «Персонаж»).
   function charHtml() {
-    return '<button class="cur-char' + (prem() ? ' gold' : '') + '" data-action="char" aria-label="' + t('Персонаж') + '">' +
+    return '<button class="cur-char" data-action="char" aria-label="' + t('Персонаж') + '">' +
       PF.char.svg(store.look(), 128) + '</button>';
   }
 
@@ -113,15 +109,7 @@
       box.innerHTML = '<div class="empty">' + t('Записей пока нет. Начните занятие или добавьте запись вручную.') + '</div>';
       return;
     }
-    // Без Premium — только последние 3 дня истории.
-    let locked = 0;
-    let visible = all;
-    if (!prem()) {
-      const from = u.addDays(u.dayKey(u.nowSec()), -(store.FREE_DAYS - 1));
-      visible = all.filter((d) => d.key >= from);
-      locked = all.length - visible.length;
-    }
-    const list = visible.slice(0, daysShown);
+    const list = all.slice(0, daysShown);
     let html = list.map((d) => {
       const chips = PF.ACT_ORDER.filter((k) => d.totals[k] > 0).map((k) =>
         '<span class="chip"><i style="background:' + ACTS[k].color + '"></i>' + u.durShort(d.totals[k]) + '</span>').join('');
@@ -132,15 +120,8 @@
       return '<div class="day"><div class="day-head"><span class="day-title">' + u.dayTitle(d.key) + '</span>' +
         '<span class="chips">' + chips + coinsChip + '</span></div><div class="card list">' + rows + '</div></div>';
     }).join('');
-    if (visible.length > daysShown) {
+    if (all.length > daysShown) {
       html += '<button class="btn btn-ghost more" data-action="more">' + t('Показать ещё') + '</button>';
-    }
-    if (locked) {
-      // div, а не button: внутри размытые строки истории, а кнопки нельзя вкладывать друг в друга
-      html += '<div class="card locked-card" role="button" tabindex="0" data-action="premium" data-reason="history">' +
-        '<span class="lc-blur">' + all.slice(visible.length, visible.length + 2).map((d) => d.recs.slice(0, 2).map(recRow).join('')).join('') + '</span>' +
-        '<span class="lc-over">' + PF.premium.lock() + '<b>' + t('Ещё {0} дн. истории', locked) + '</b>' +
-        '<small>' + t('Вся история — в Premium') + '</small></span></div>';
     }
     box.innerHTML = html;
   }
@@ -197,14 +178,7 @@
     } else if (action === 'stop') {
       doStop();
     } else if (action === 'add') {
-      if (!prem()) { PF.premium.paywall(t('Записи задним числом — в Premium')); return; }
       openForm(null);
-    } else if (action === 'premium') {
-      PF.premium.paywall(btn.dataset.reason === 'history' ? t('Вся история — в Premium') : '');
-    } else if (action === 'banner-close') {
-      lsSet('pfx_banner_hide', String(Date.now() + 3 * 86400000));
-      const bn = root.querySelector('.pbanner');
-      if (bn) bn.remove();
     } else if (action === 'edit') {
       const r = store.S.records.find((x) => x.id === btn.dataset.id);
       if (r) openForm(r);
@@ -247,26 +221,7 @@
     if (res.rec) ui.floatCoins(store.recCoins(res.rec));
     ui.haptic('light');
     if (res.short) ui.toast(t('Занятие было короче минуты и не сохранено'));
-    else if (res.rec) { ui.toast(recordedText(res.rec)); upsellAfter(res.rec); }
-  }
-
-  // Подсказка «С Premium было бы +N монет» — не чаще раза в день.
-  function upsellAfter(r) {
-    if (prem()) return;
-    const extra = Math.round(store.bonusFor(r));
-    const today = u.dayKey(u.nowSec());
-    if (extra < 1 || lsGet('pfx_upsell_day') === today) return;
-    lsSet('pfx_upsell_day', today);
-    setTimeout(() => ui.toast(t('⭐ С Premium вы получили бы ещё +{0} монет', extra), true), 2700);
-  }
-
-  // Баннер Premium на главном экране (можно закрыть на 3 дня).
-  function bannerHtml() {
-    if (prem() || Number(lsGet('pfx_banner_hide') || 0) > Date.now()) return '';
-    return '<div class="card pbanner">' +
-      '<button class="pb-main" data-action="premium"><span class="pb-ic">⭐</span><span><b>' + t('Разблокируй всё с Premium') + '</b>' +
-      '<small>' + t('Безлимитные задачи, танцы, вся статистика и +25% монет — за {0} ⭐ в месяц', PF.premium.PRICE) + '</small></span></button>' +
-      '<button class="pb-close" data-action="banner-close" aria-label="' + t('Закрыть') + '">×</button></div>';
+    else if (res.rec) ui.toast(recordedText(res.rec));
   }
 
   function recordedText(r) {

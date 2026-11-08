@@ -17,11 +17,6 @@
   const UNCODE = {};
   Object.keys(ACTS).forEach((k) => { UNCODE[ACTS[k].code] = k; });
 
-  // Есть ли сейчас Premium (модуль premium.js; если его нет — нет).
-  const prem = () => !!(PF.premium && PF.premium.isPremium());
-  const PREMIUM_BONUS = 1.25; // +25% монет за работу и учёбу
-  const DAILY_BONUS = 30;     // ежедневный бонус подписчика
-
   const ASK_FIRST = 2 * 3600;   // первый вопрос «Ты всё ещё занимаешься?» через 2 часа
   const ASK_REPEAT = 2 * 3600;  // после ответа «да» — снова через 2 часа
   const MIN_SESSION = 60;       // занятия короче минуты не сохраняем
@@ -74,21 +69,18 @@
 
   // ---------- кодирование ----------
 
-  // [id, буква, начало, конец, задача?, 1 — запись сделана с Premium (+25% монет)?]
   function encodeRec(r) {
     const arr = [r.id, ACTS[r.a].code, r.s, r.e];
-    if (r.t || r.b) arr.push(r.t || '');
-    if (r.b) arr.push(1);
+    if (r.t) arr.push(r.t);
     return arr;
   }
 
   function decodeRec(arr) {
     if (!Array.isArray(arr)) return null;
-    const [id, code, s, e, t, b] = arr;
+    const [id, code, s, e, t] = arr;
     if (!UNCODE[code] || !Number.isFinite(s) || !Number.isFinite(e) || e <= s) return null;
     const r = { id: String(id), a: UNCODE[code], s, e };
     if (t) r.t = String(t);
-    if (b === 1) r.b = 1;
     return r;
   }
 
@@ -248,7 +240,6 @@
     if (end - a.s < MIN_SESSION) return { short: true };
     const rec = { id: u.uid(), a: a.a, s: a.s, e: end };
     if (a.t) rec.t = a.t;
-    if (prem()) rec.b = 1;
     S.records.push(rec);
     sortRecs();
     markRec(rec);
@@ -293,7 +284,6 @@
   function add(data) {
     const rec = { id: u.uid(), a: data.a, s: data.s, e: data.e };
     if (data.t) rec.t = data.t;
-    if (prem()) rec.b = 1;
     const err = validate(rec, null, true);
     if (err) return err;
     S.records.push(rec);
@@ -363,7 +353,7 @@
       });
     }
     (Array.isArray(ch.buy) ? ch.buy : []).forEach((b) => {
-      if (Array.isArray(b) && typeof b[0] === 'string' && Number.isFinite(b[1]) && (b[1] >= 0 || b[0].startsWith('bonus:')) &&
+      if (Array.isArray(b) && typeof b[0] === 'string' && Number.isFinite(b[1]) && b[1] >= 0 &&
           !out.buy.some((x) => x[0] === b[0])) {
         out.buy.push([b[0], b[1], Number.isFinite(b[2]) ? b[2] : 0]);
       }
@@ -379,29 +369,11 @@
   }
 
   const item = (id) => (PF.char ? PF.char.byId[id] : null);
-  // Вещь только для Premium: редкие, легендарные, танцы и эксклюзивы подписчиков.
-  const premiumOnly = (it) => !!it && (it.rarity === 'rare' || it.rarity === 'legendary' || it.rarity === 'premium' || it.cat === 'dance');
   const owns = (id) => {
     const it = item(id);
-    if (!it) return false;
-    if (it.rarity === 'premium') return prem(); // эксклюзивы есть у всех подписчиков
-    return it.rarity === 'base' || S.char.buy.some((b) => b[0] === id);
+    return !!it && (it.rarity === 'base' || S.char.buy.some((b) => b[0] === id));
   };
-  // Можно ли надеть: вещь есть, и если она премиальная — есть подписка.
-  const usable = (id) => owns(id) && (!premiumOnly(item(id)) || prem());
-  // Траты (бонусы хранятся в том же списке с отрицательной ценой).
   const spent = () => S.char.buy.reduce((sum, b) => sum + b[1], 0);
-  const shopSpent = (from, to) => S.char.buy.reduce((sum, b) => sum + (b[1] > 0 && b[2] >= from && b[2] < to ? b[1] : 0), 0);
-
-  // Ежедневный бонус подписчика: +30 монет раз в день. Возвращает сумму или 0.
-  function claimDailyBonus() {
-    if (!prem()) return 0;
-    const key = 'bonus:' + u.dayKey(u.nowSec());
-    if (S.char.buy.some((b) => b[0] === key)) return 0;
-    S.char.buy.push([key, -DAILY_BONUS, u.nowSec()]);
-    charChanged();
-    return DAILY_BONUS;
-  }
 
   // Что сейчас надето (с проверкой: только свои существующие вещи).
   function equipped() {
@@ -409,7 +381,7 @@
     Object.keys(S.char.eq).forEach((cat) => {
       const id = S.char.eq[cat];
       const it = item(id);
-      eq[cat] = it && it.cat === cat && usable(id) ? id : PF.char.BASE[cat];
+      eq[cat] = it && it.cat === cat && owns(id) ? id : PF.char.BASE[cat];
     });
     return eq;
   }
@@ -420,7 +392,7 @@
   // Выбранный цвет вещи (только если он куплен), иначе null — исходный цвет.
   function colorOf(id) {
     const v = S.char.col[id];
-    return prem() && Number.isInteger(v) && ownsColor(id, v) ? v : null;
+    return Number.isInteger(v) && ownsColor(id, v) ? v : null;
   }
 
   // Описание внешности для рисования.
@@ -463,9 +435,8 @@
   // Почему нельзя купить (или null, если можно).
   function cantBuy(id) {
     const it = item(id);
-    if (!it || it.rarity === 'base' || it.rarity === 'premium') return t('Эту вещь нельзя купить.');
+    if (!it || it.rarity === 'base') return t('Эту вещь нельзя купить.');
     if (owns(id)) return t('Уже куплено.');
-    if (premiumOnly(it) && !prem()) return t('Доступно в Premium.');
     const bal = Math.round(balance());
     if (bal < 0) return t('Баланс отрицательный — покупки недоступны.');
     if (bal < it.price) return t('Не хватает {0} мон.', u.num(it.price - bal));
@@ -485,7 +456,6 @@
     if (!it || !it.pal || !PF.char.PALETTE[idx]) return t('Эту вещь нельзя перекрасить.');
     if (!owns(id)) return t('Сначала купите вещь.');
     if (ownsColor(id, idx)) return t('Уже куплено.');
-    if (!prem()) return t('Доступно в Premium.');
     return cantPay(PF.char.colorPrice(it));
   }
 
@@ -502,7 +472,7 @@
   // Выбрать купленный цвет (null — исходный).
   function setColor(id, idx) {
     if (idx === null) delete S.char.col[id];
-    else if (ownsColor(id, idx) && prem()) S.char.col[id] = idx;
+    else if (ownsColor(id, idx)) S.char.col[id] = idx;
     else return;
     charChanged();
   }
@@ -520,7 +490,7 @@
 
   function equip(id) {
     const it = item(id);
-    if (!it || !usable(id)) return;
+    if (!it || !owns(id)) return;
     S.char.eq[it.cat] = id;
     charChanged();
   }
@@ -537,19 +507,13 @@
   // поэтому правка и удаление записей сразу его пересчитывают.
 
   // Монеты за завершённую запись — точно, с дробями (ставка × минуты).
-  const recCoins = (r) => {
-    const rate = ACTS[r.a].rate;
-    return rate * (r.e - r.s) / 60 * (r.b && rate > 0 ? PREMIUM_BONUS : 1);
-  };
-  // Сколько монет дал бы Premium за эту запись (для подсказки «С Premium было бы +N»).
-  const bonusFor = (r) => (ACTS[r.a].rate > 0 ? ACTS[r.a].rate * (r.e - r.s) / 60 * (PREMIUM_BONUS - 1) : 0);
+  const recCoins = (r) => ACTS[r.a].rate * (r.e - r.s) / 60;
 
   // Монеты за текущее занятие — по целым минутам, поэтому баланс меняется раз в минуту.
   function activeCoins() {
     const a = S.active;
     if (!a) return 0;
-    const rate = ACTS[a.a].rate;
-    return rate * Math.floor(Math.max(0, u.nowSec() - a.s) / 60) * (rate > 0 && prem() ? PREMIUM_BONUS : 1);
+    return ACTS[a.a].rate * Math.floor(Math.max(0, u.nowSec() - a.s) / 60);
   }
 
   function balance() {
@@ -723,13 +687,6 @@
     balance,
     spent,
     owns,
-    usable,
-    premiumOnly: (id) => premiumOnly(item(id)),
-    claimDailyBonus,
-    shopSpent,
-    bonusFor,
-    FREE_TASKS: 3,
-    FREE_DAYS: 3,
     equipped,
     look,
     setLook,

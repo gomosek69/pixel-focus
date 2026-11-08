@@ -87,7 +87,7 @@
         if (ov > 0) c.v[r.a] += ov;
       });
     });
-    const spent = store.shopSpent(p.s, p.e);
+    const spent = store.S.char.buy.reduce((sum, b) => sum + (b[2] >= p.s && b[2] < p.e ? b[1] : 0), 0);
     p.totals = totals;
     p.spent = spent;
     p.isCurrent = p.s <= now && now < p.e;
@@ -114,14 +114,9 @@
 
   // ---------- отрисовка ----------
 
-  const prem = () => PF.premium.isPremium();
-  // Без Premium доступны только «День» и «Столбцы»; остальное — размыто с предложением Premium.
-  const isLocked = () => !prem() && (mode !== 'day' || store.S.prefs.chart !== 'bars');
-
   function render(el) {
     root = el;
     if (!anchor) anchor = new Date();
-    const locked = isLocked();
     model = compute();
     const p = model;
     const total = ORDER.reduce((sum, k) => sum + p.totals[k], 0);
@@ -131,24 +126,20 @@
       '<div class="seg seg-main" data-seg="stats-mode">' +
       ['day', 'month', 'year'].map((m) =>
         '<button class="seg-btn' + (mode === m ? ' on' : '') + '" data-mode="' + m + '">' +
-        t({ day: 'День', month: 'Месяц', year: 'Год' }[m]) + (m !== 'day' && !prem() ? ' ⭐' : '') + '</button>').join('') +
+        t({ day: 'День', month: 'Месяц', year: 'Год' }[m]) + '</button>').join('') +
       '</div>' +
       '<div class="period-nav">' +
       '  <button class="nav-btn" data-nav="-1" aria-label="' + esc(t('Назад')) + '">‹</button>' +
       '  <span class="period-title">' + esc(p.title) + '</span>' +
       '  <button class="nav-btn" data-nav="1"' + (p.isCurrent || p.isFuture ? ' disabled' : '') + ' aria-label="' + esc(t('Вперёд')) + '">›</button>' +
       '</div>' +
-      '<div class="card chart-card' + (locked ? ' locked' : '') + '">' +
+      '<div class="card chart-card">' +
       '  <div class="legend">' + ORDER.map((k) =>
         '<span class="lg"><i style="background:' + ACTS[k].color + '"></i>' + t(ACTS[k].name) + '</span>').join('') + '</div>' +
       '  <div class="chart" id="chart"></div>' +
-      (locked ? '<button class="lock-over" data-premium="1">' + PF.premium.lock() + '<b>' + t('Доступно в Premium') + '</b>' +
-        '<small>' + t('Месяц, год и все виды графиков') + '</small></button>' : '') +
       '</div>' +
       '<div class="group-title">' + t('Итоги за период') + '</div>' +
-      (locked ? '<button class="card locked-card" data-premium="1"><span class="lc-over">' + PF.premium.lock() +
-        '<b>' + t('Итоги за месяц и год — в Premium') + '</b><small>' + t('Нажмите, чтобы узнать больше') + '</small></span></button>'
-        : totalsHtml(p, total));
+      totalsHtml(p, total);
     root.onclick = onClick;
     drawChart();
   }
@@ -229,8 +220,7 @@
   function chartTypesHtml() {
     const cur = store.S.prefs.chart;
     return '<div class="chart-types" role="tablist">' + CHART_TYPES.map((c) =>
-      '<button class="ct-btn' + (cur === c.id ? ' on' : '') + '" data-chart="' + c.id + '">' + ui.icon(c.icon) + t(c.name) +
-      (c.id !== 'bars' && !PF.premium.isPremium() ? ' ⭐' : '') + '</button>').join('') + '</div>';
+      '<button class="ct-btn' + (cur === c.id ? ' on' : '') + '" data-chart="' + c.id + '">' + ui.icon(c.icon) + t(c.name) + '</button>').join('') + '</div>';
   }
 
   let lastChartKey = '';
@@ -491,7 +481,6 @@
   // ---------- нажатия ----------
 
   function onClick(e) {
-    if (e.target.closest('[data-premium]')) { PF.premium.paywall(t('Вся статистика — в Premium')); return; }
     const ct = e.target.closest('[data-chart]');
     if (ct) { store.setPref('chart', ct.dataset.chart); return; }
     const m = e.target.closest('[data-mode]');
