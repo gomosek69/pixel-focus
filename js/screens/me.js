@@ -580,7 +580,7 @@
         fieldsHtml(id, e) +
         '<div class="field-row">' +
         '<label class="field"><span>' + t('Дата') + '</span><input type="date" id="fDate" value="' + u.dayKey(tm) + '" max="' + u.dayKey(now) + '"></label>' +
-        '<label class="field"><span>' + t('Время') + '</span><input type="time" id="fTime" value="' + u.hm(tm) + '"></label></div>' +
+        '<label class="field"><span>' + t('Время') + '</span><input type="time" id="fTime" value="' + u.hmInput(tm) + '"></label></div>' +
         '<div class="form-err" id="fErr"></div>' +
         '<div class="btn-col"><button class="btn btn-primary" id="fSave">' + t('Сохранить') + '</button>' +
         (isEdit ? '<button class="btn btn-danger-ghost" id="fDel">' + ui.icon('trash') + t('Удалить запись') + '</button>' : '') +

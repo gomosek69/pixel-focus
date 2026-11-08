@@ -48,6 +48,11 @@
       '<div class="seg seg-main lang-seg" data-seg="lang">' +
       langBtn('auto', t('Как в Telegram')) + langBtn('ru', 'Русский') + langBtn('en', 'English') +
       '</div>' +
+      '<div class="group-title">' + t('Формат даты и времени') + '</div>' +
+      '<div class="seg seg-main fmt-seg" data-seg="datefmt">' +
+      ['eu', 'us'].map((f) => '<button class="seg-btn' + (store.S.prefs.datefmt === f ? ' on' : '') + '" data-datefmt="' + f + '">' +
+        '<b>' + t(f === 'eu' ? 'Европейский' : 'США') + '</b><small>' + (f === 'eu' ? '24.12.2026 · 14:05' : '12/24/2026 · 2:05 PM') + '</small></button>').join('') +
+      '</div>' +
       appearanceHtml() +
       '<div class="group-title">' + t('Резервная копия') + '</div>' +
       '<div class="card list">' +
@@ -111,6 +116,8 @@
     if (ac) { store.setPref('accent', ac.dataset.accent === 'auto' ? 'auto' : Number(ac.dataset.accent)); ui.haptic('light'); return; }
     const bgb = e.target.closest('.bg-tile[data-bg]');
     if (bgb) { store.setPref('bg', Number(bgb.dataset.bg)); ui.haptic('light'); return; }
+    const df = e.target.closest('[data-datefmt]');
+    if (df) { store.setPref('datefmt', df.dataset.datefmt); ui.haptic('light'); return; }
     const langBtn = e.target.closest('[data-lang]');
     if (langBtn) {
       store.setPref('lang', langBtn.dataset.lang);

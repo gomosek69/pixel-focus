@@ -225,7 +225,7 @@ input, textarea { font: inherit; color: inherit; }
 }
 .rec + .rec { border-top: 1px solid var(--line); }
 .rec:active { background: var(--soft); }
-.bar { width: 4px; align-self: stretch; border-radius: 4px; flex: none; }
+.rec .bar { width: 4px; align-self: stretch; border-radius: 4px; flex: none; }
 .rec-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .rec-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rec-task { color: var(--hint); font-weight: 400; }
@@ -346,7 +346,7 @@ textarea.code {
 }
 
 .char-stage {
-  display: flex; justify-content: center; padding: 12px 0 8px; margin-bottom: 14px;
+  display: flex; justify-content: center; padding: 26px 0 8px; margin-bottom: 14px;
   background:
     radial-gradient(ellipse 24% 4% at 50% 93%, rgba(0, 0, 0, 0.16), transparent),
     linear-gradient(180deg, color-mix(in srgb, var(--primary) 14%, var(--card)), var(--card));
@@ -1093,3 +1093,17 @@ button:active:not(:disabled) { transform: scale(0.96); }
 .feel-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .kv-feel { align-items: flex-start; }
 .feel-top { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+
+/* поля даты и времени: подпись в выбранном формате поверх поля */
+.dt-wrap { position: relative; display: block; width: 100%; }
+.dt-wrap > input { width: 100%; color: transparent; }
+.dt-wrap > input::-webkit-datetime-edit { opacity: 0; }
+.dt-wrap.empty > input { color: inherit; }
+.dt-wrap.empty > input::-webkit-datetime-edit { opacity: 1; }
+.field .dt-wrap { font-size: 16px; color: var(--text); }
+.dt-text, .field .dt-text {
+  position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+  pointer-events: none; font-size: 16px; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.fmt-seg .seg-btn { display: flex; flex-direction: column; gap: 2px; line-height: 1.15; padding-top: 8px; padding-bottom: 8px; }
+.fmt-seg .seg-btn small { font-size: 11px; opacity: .75; font-weight: 500; }

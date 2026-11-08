@@ -123,6 +123,11 @@
   // =====================================================================
 
   const N = 64;
+  // Запас сверху: пиксели выше картинки (пышные причёски, шляпы) не теряются, а рисуются
+  // над рамкой (у SVG overflow: visible). Индекс пикселя: (y + OY) * N + x.
+  const OY = 10, NH = N + OY;
+  const IX = (x, y) => (y + OY) * N + x;
+  const YI = (i) => ((i / N) | 0) - OY;
   const PARTS = ['legl', 'legr', 'torso', 'head', 'larm', 'rarm'];
   const P = { legl: 0, legr: 1, torso: 2, head: 3, larm: 4, rarm: 5 };
 
@@ -160,27 +165,27 @@
   // Холст: материал, тон, прямой цвет (детали), часть тела.
   class Canvas {
     constructor() {
-      this.m = new Array(N * N).fill(null);
-      this.t = new Uint8Array(N * N);
-      this.raw = new Array(N * N).fill(null);
-      this.part = new Int8Array(N * N);
+      this.m = new Array(N * NH).fill(null);
+      this.t = new Uint8Array(N * NH);
+      this.raw = new Array(N * NH).fill(null);
+      this.part = new Int8Array(N * NH);
       this.cur = P.torso;
       this.fx = [];
     }
     set(x, y, m, tone) {
       x = Math.round(x); y = Math.round(y);
-      if (x < 0 || y < 0 || x >= N || y >= N) return;
-      const i = y * N + x;
+      if (x < 0 || y < -OY || x >= N || y >= N) return;
+      const i = IX(x, y);
       this.m[i] = m; this.t[i] = tone; this.raw[i] = null; this.part[i] = this.cur;
     }
     px(x, y, hex) {
       x = Math.round(x); y = Math.round(y);
-      if (x < 0 || y < 0 || x >= N || y >= N) return;
-      const i = y * N + x;
+      if (x < 0 || y < -OY || x >= N || y >= N) return;
+      const i = IX(x, y);
       this.raw[i] = hex; if (!this.m[i]) this.m[i] = mat(hex); this.part[i] = this.cur;
     }
     pts(list, hex) { list.forEach(([x, y]) => this.px(x, y, hex)); }
-    filled(x, y) { return x >= 0 && y >= 0 && x < N && y < N && !!this.m[y * N + x]; }
+    filled(x, y) { return x >= 0 && y >= -OY && x < N && y < N && !!this.m[IX(x, y)]; }
     // Слой эффектов (свечение, анимация): без контура, поверх основной картинки.
     // back — слой позади фигуры (крылья).
     layer(cls, glow, back) {
@@ -207,13 +212,13 @@
         if (opts.minTone !== undefined) tone = Math.max(tone, opts.minTone);
         if (opts.maxTone !== undefined) tone = Math.min(tone, opts.maxTone);
         c.set(x, y, m, tone);
-        mask.add(y * N + x);
+        if (x >= 0 && x < N && y >= -OY && y < N) mask.add(IX(x, y));
       }
     }
     if (opts.edge) {
       const et = opts.edgeTone !== undefined ? opts.edgeTone : 2;
       mask.forEach((i) => {
-        const x = i % N, y = (i / N) | 0;
+        const x = i % N, y = YI(i);
         const onEdge = !mask.has(i - 1) || !mask.has(i + 1) || !mask.has(i - N) || !mask.has(i + N);
         if (onEdge && (opts.edge === true || (opts.edge === 'bottom' && !mask.has(i + N)))) c.t[i] = Math.max(c.t[i], et);
       });
@@ -471,7 +476,7 @@
     if (o.shine !== false) {
       const R = rx - 4, bx = cx - 1.5, by = cy + 2.5;
       mask.forEach((i) => {
-        const x = i % N, y = (i / N) | 0;
+        const x = i % N, y = YI(i);
         if (y > cy - 3 || c.m[i] !== h) return;
         const d = Math.hypot(x + 0.5 - bx, (y + 0.5 - by) * 1.15);
         if (Math.abs(d - R) < 0.75 && (x + y) % 5 !== 0) c.t[i] = 0;
@@ -501,10 +506,13 @@
       const nx = (x - cx) / w;
       return [nx, 0.1, Math.sqrt(Math.max(0, 1 - nx * nx))];
     }, h, { edge: true, edgeTone: 3, minTone: 1 });
+    // нижняя часть волос за спиной двигается с туловищем, а не с головой
+    // (иначе при наклоне головы в танце волосы «разлетаются» за руки и ноги)
+    mask.forEach((i) => { if (YI(i) >= H.cy + 5) c.part[i] = P.torso; });
     // пряди вдоль волос
     for (let x = cx - w + 3; x <= cx + w - 3; x += 4) {
       for (let y = H.cy + 4; y < bottom - 3; y++) {
-        const i = y * N + Math.round(x + (x < cx ? -1 : 1) * (y - H.cy) / (bottom - H.cy));
+        const i = IX(Math.round(x + (x < cx ? -1 : 1) * (y - H.cy) / (bottom - H.cy)), y);
         if (mask.has(i)) c.t[i] = 2;
       }
     }
@@ -577,7 +585,7 @@
         const H = k.G.H;
         // короткий ёжик по форме головы: без чёлки, мягкая линия роста волос
         const r = hairMass(c, k, { rx: H.rx + 0.8, ry: H.ry + 0.8, cy: H.cy - 0.5, fringe: fringeLine([[18, H.cy - 6], [26, H.cy - 8], [32, H.cy - 8.5], [38, H.cy - 8], [46, H.cy - 6]]), side: H.cy - 1, sideIn: 12, shine: false });
-        r.mask.forEach((i) => { const x = i % N, y = (i / N) | 0; if ((x * 3 + y * 5) % 7 === 0 && c.t[i] < 3) c.t[i] = Math.min(3, c.t[i] + 1); });
+        r.mask.forEach((i) => { const x = i % N, y = YI(i); if ((x * 3 + y * 5) % 7 === 0 && c.t[i] < 3) c.t[i] = Math.min(3, c.t[i] + 1); });
       } },
     { id: 'hair_spiky', cat: 'hair', name: 'Ёжик', en: 'Spiky', style: 'street', rarity: 'common', price: 150,
       draw(c, k) {
@@ -602,7 +610,8 @@
     { id: 'hair_curly', cat: 'hair', name: 'Кудри', en: 'Curly', style: 'classic', rarity: 'common', price: 200,
       back(c, k) {
         const H = k.G.H, h = mat(k.hair);
-        // пышные локоны за плечами
+        // пышные локоны за плечами (двигаются с туловищем)
+        c.cur = P.torso;
         [[17, 30], [47, 30], [16, 36], [48, 36], [18, 41], [46, 41]].forEach(([x, y]) => ell(c, x, y, 4.2, 3.6, h, { edge: true, edgeTone: 3 }));
         void H;
       },
@@ -662,7 +671,7 @@
         // пышное облако из мягких завитков, лицо открыто
         [[15, 14], [49, 14], [16, 22], [48, 22], [19, 6], [45, 6], [25, 2], [32, 1], [39, 2]].forEach(([x, y]) => ell(c, x, y, 5, 4.6, h, { edge: true, edgeTone: 3 }));
         const r = hairMass(c, k, { rx: H.rx + 5, ry: H.ry + 4, cy: H.cy - 2, fringe: feathers(20, 44, 5, H.cy - 9, H.cy - 6, 0.8, 0), side: H.cy + 6, sideIn: 11, shine: false });
-        r.mask.forEach((i) => { const x = i % N, y = (i / N) | 0; if ((x * 7 + y * 11) % 13 === 0 && c.t[i] < 3) c.t[i] = 2; if ((x * 5 + y * 3) % 17 === 0) c.t[i] = 0; });
+        r.mask.forEach((i) => { const x = i % N, y = YI(i); if ((x * 7 + y * 11) % 13 === 0 && c.t[i] < 3) c.t[i] = 2; if ((x * 5 + y * 3) % 17 === 0) c.t[i] = 0; });
       } },
     { id: 'hair_mohawk', cat: 'hair', name: 'Ирокез', en: 'Mohawk', style: 'street', rarity: 'common', price: 350,
       draw(c, k) {
@@ -863,7 +872,7 @@
         // полосы по всем деталям
         for (let y = 34; y <= 45; y += 3) {
           for (let x = 12; x <= 52; x++) {
-            const i = y * N + x;
+            const i = IX(x, y);
             // меняем только цвет: пиксель остаётся в своей части тела (рукав двигается с рукой)
             if (c.m[i] === W) { c.m[i] = S; c.t[i] = c.t[i] >= 2 ? 2 : 1; }
           }
@@ -1707,8 +1716,8 @@
     ] },
     dab: { dur: 1.6, frames: [
       { all: T(0, 0) },
-      { larm: R(-140), rarm: R(-118), head: T(4, 4) + R(-18), all: T(0, 1) },
-      { larm: R(-140), rarm: R(-118), head: T(4, 4) + R(-18), all: T(0, 1) },
+      { larm: R(-140), rarm: R(-118), head: T(3, 1) + R(-13), all: T(0, 1) },
+      { larm: R(-140), rarm: R(-118), head: T(3, 1) + R(-13), all: T(0, 1) },
       { all: T(0, 0) },
     ] },
     robot: { dur: 1.4, frames: [
@@ -1918,21 +1927,21 @@
   function legendHair(c, k, L) {
     const hm = mat(k.hair);
     const idx = [];
-    for (let i = 0; i < N * N; i++) if (c.m[i] === hm && !c.raw[i]) idx.push(i);
+    for (let i = 0; i < N * NH; i++) if (c.m[i] === hm && !c.raw[i]) idx.push(i);
     if (!idx.length) return;
     let lo = Infinity, hi = -Infinity;
-    const pos = (i) => (i / N | 0) + (i % N) * 0.45;
+    const pos = (i) => YI(i) + (i % N) * 0.45;
     idx.forEach((i) => { const v = pos(i); if (v < lo) lo = v; if (v > hi) hi = v; });
     const flow = c.layer('fx-shimmer', false);
     idx.forEach((i) => {
       const f = (pos(i) - lo) / Math.max(1, hi - lo);
       c.m[i] = mat(gradAt(L.grad, f));
       flow.cur = c.part[i];
-      flow.set(i % N, i / N | 0, mat(gradAt(L.alt, f)), c.t[i]);
+      flow.set(i % N, YI(i), mat(gradAt(L.alt, f)), c.t[i]);
     });
     const a = c.layer('fx-a', true), b = c.layer('fx-b', true);
     idx.forEach((i, n) => {
-      const x = i % N, y = i / N | 0;
+      const x = i % N, y = YI(i);
       if (c.t[i] > 1) return;
       const h = (x * 73 + y * 151) % 97;
       if (h === 3 || h === 41) { a.cur = c.part[i]; a.px(x, y, L.spark); }
@@ -1943,20 +1952,20 @@
 
   // Готовые цвета пикселей + цветной контур снаружи силуэта.
   function paint(c, outline) {
-    const col = new Array(N * N).fill(null);
+    const col = new Array(N * NH).fill(null);
     const part = Int8Array.from(c.part);
-    for (let i = 0; i < N * N; i++) {
+    for (let i = 0; i < N * NH; i++) {
       if (c.raw[i]) col[i] = c.raw[i];
       else if (c.m[i]) col[i] = c.m[i].t[c.t[i]];
     }
     if (outline) {
       const add = [];
-      for (let y = 0; y < N; y++) {
+      for (let y = -OY; y < N; y++) {
         for (let x = 0; x < N; x++) {
-          if (c.m[y * N + x]) continue;
+          if (c.m[IX(x, y)]) continue;
           // сосед для цвета контура: сначала снизу/сверху, потом по бокам
           const nb = [[x, y + 1], [x, y - 1], [x - 1, y], [x + 1, y]].find(([a, b]) => c.filled(a, b));
-          if (nb) { const j = nb[1] * N + nb[0]; add.push([y * N + x, c.m[j].out, c.part[j]]); }
+          if (nb) { const j = IX(nb[0], nb[1]); add.push([IX(x, y), c.m[j].out, c.part[j]]); }
         }
       }
       add.forEach(([i, hex, p]) => { col[i] = hex; part[i] = p; });
@@ -1968,10 +1977,10 @@
   function rects(img, part) {
     let out = '';
     const { c, p } = img;
-    for (let y = 0; y < N; y++) {
+    for (let y = -OY; y < N; y++) {
       let x = 0;
       while (x < N) {
-        const i = y * N + x;
+        const i = IX(x, y);
         const col = c[i];
         if (!col || p[i] !== part) { x++; continue; }
         let w = 1;
@@ -2035,7 +2044,7 @@
         '<feMergeNode in="SourceGraphic"/></feMerge></filter></defs>'
       : '';
     return '<svg class="pix' + (dance ? ' dancing dance-' + dance : '') + '" width="' + size + '" height="' + size + '" viewBox="0 0 64 64" ' +
-      'shape-rendering="crispEdges" aria-hidden="true">' + defs +
+      'shape-rendering="crispEdges" overflow="visible" style="overflow:visible" aria-hidden="true">' + defs +
       '<g class="pp pp-all" style="transform-origin:32px 62px">' + body + '</g></svg>';
   }
 

@@ -84,11 +84,28 @@
     nav.innerHTML = '<span class="tab-ind"></span>' + TABS.map((t) =>
       '<button class="tab' + (t.id === current ? ' on' : '') + '" data-tab="' + t.id + '">' +
       PF.ui.icon(t.icon) + '<span>' + PF.t(t.label) + '</span></button>').join('');
+    placeTabInd(true);
+  }
+
+  // Поставить плашку под активную вкладку. animate=false — без анимации (при изменении
+  // ширины окна, например когда на компьютере появляется полоса прокрутки).
+  function placeTabInd(animate) {
+    const nav = document.getElementById('tabbar');
     const ind = nav.querySelector('.tab-ind');
+    if (!ind) return;
     const on = nav.querySelector('.tab.on');
     ind.style.opacity = on ? '' : '0';
     if (!on) return;
     const x = on.offsetLeft + 4, w = on.offsetWidth - 8;
+    if (!animate) {
+      ind.style.transition = 'none';
+      ind.style.transform = 'translateX(' + x + 'px)';
+      ind.style.width = w + 'px';
+      void ind.offsetWidth;
+      ind.style.transition = '';
+      tabIndPos = { x, w };
+      return;
+    }
     if (tabIndPos) {
       ind.style.transition = 'none';
       ind.style.transform = 'translateX(' + tabIndPos.x + 'px)';
@@ -207,6 +224,10 @@
     applyTheme();
     renderTabbar();
     renderScreen('fwd');
+
+    // ширина панели изменилась — переставить плашку
+    if (window.ResizeObserver) new ResizeObserver(() => placeTabInd(false)).observe(document.getElementById('tabbar'));
+    window.addEventListener('resize', () => placeTabInd(false));
 
     document.getElementById('tabbar').addEventListener('click', (e) => {
       const b = e.target.closest('[data-tab]');

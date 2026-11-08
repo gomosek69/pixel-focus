@@ -16,6 +16,8 @@ window.PF = window.PF || {};
   const EN_MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const EN_WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const isEn = () => PF.i18n && PF.i18n.lang === 'en';
+  // Формат дат и времени: 'eu' — европейский (24.12.2026, 14:05), 'us' — США (12/24/2026, 2:05 PM).
+  const isUS = () => !!(PF.store && PF.store.S && PF.store.S.prefs && PF.store.S.prefs.datefmt === 'us');
 
   // Три основных занятия. code — короткая буква для компактного хранения.
   // Свои занятия пользователя (store.js) добавляются в этот же объект с полем custom: true;
@@ -84,10 +86,35 @@ window.PF = window.PF || {};
     esc: (s) => String(s).replace(/[&<>"']/g, (c) => (
       { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
 
-    // 14:05
+    // Время для показа: "14:05" или "2:05 PM"
     hm(sec) {
       const d = toDate(sec);
+      return PF.u.clock(d.getHours(), d.getMinutes());
+    },
+
+    // Время для полей ввода <input type="time"> — всегда 14:05
+    hmInput(sec) {
+      const d = toDate(sec);
       return pad(d.getHours()) + ':' + pad(d.getMinutes());
+    },
+
+    // Часы и минуты в выбранном формате
+    clock(h, m) {
+      if (!isUS()) return pad(h) + ':' + pad(m);
+      return ((h + 11) % 12 + 1) + ':' + pad(m) + (h < 12 ? ' AM' : ' PM');
+    },
+
+    // "14:05" (строка из поля ввода) в выбранном формате
+    clockStr(s) {
+      const m = /^(\d{1,2}):(\d{2})/.exec(s || '');
+      return m ? PF.u.clock(Number(m[1]), Number(m[2])) : (s || '');
+    },
+
+    // Дата "2026-12-24" в выбранном формате: 24.12.2026 или 12/24/2026
+    dateStr(dayKey) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dayKey || '');
+      if (!m) return dayKey || '';
+      return isUS() ? m[2] + '/' + m[3] + '/' + m[1] : m[3] + '.' + m[2] + '.' + m[1];
     },
 
     // 2026-11-07 (формат для <input type="date"> и ключ дня)
@@ -181,11 +208,13 @@ window.PF = window.PF || {};
       if (dayKey === PF.u.addDays(today, 1)) return en ? 'Tomorrow' : 'Завтра';
       const [y, m, d] = dayKey.split('-').map(Number);
       const dt = new Date(y, m - 1, d);
+      const thisYear = y === new Date().getFullYear();
       if (en) {
-        if (y !== new Date().getFullYear()) return EN_MONTHS[m - 1] + ' ' + d + ', ' + y;
-        return EN_WEEKDAYS[dt.getDay()] + ', ' + EN_MONTHS[m - 1] + ' ' + d;
+        if (isUS()) return thisYear ? EN_WEEKDAYS[dt.getDay()] + ', ' + EN_MONTHS[m - 1] + ' ' + d : EN_MONTHS[m - 1] + ' ' + d + ', ' + y;
+        return thisYear ? EN_WEEKDAYS[dt.getDay()] + ', ' + d + ' ' + EN_MONTHS[m - 1] : d + ' ' + EN_MONTHS[m - 1] + ' ' + y;
       }
-      if (y !== new Date().getFullYear()) return d + ' ' + MONTHS_GEN[m - 1] + ' ' + y;
+      if (isUS()) return thisYear ? WEEKDAYS[dt.getDay()] + ', ' + pad(m) + '/' + pad(d) : pad(m) + '/' + pad(d) + '/' + y;
+      if (!thisYear) return d + ' ' + MONTHS_GEN[m - 1] + ' ' + y;
       return WEEKDAYS[dt.getDay()] + ', ' + d + ' ' + MONTHS_GEN[m - 1];
     },
 
@@ -197,7 +226,8 @@ window.PF = window.PF || {};
     // "8 нояб."
     shortDate(sec) {
       const d = toDate(sec);
-      if (isEn()) return EN_MONTHS_SHORT[d.getMonth()] + ' ' + d.getDate();
+      if (isUS()) return isEn() ? EN_MONTHS_SHORT[d.getMonth()] + ' ' + d.getDate() : pad(d.getMonth() + 1) + '/' + pad(d.getDate());
+      if (isEn()) return d.getDate() + ' ' + EN_MONTHS_SHORT[d.getMonth()];
       return d.getDate() + ' ' + MONTHS_SHORT[d.getMonth()];
     },
   };

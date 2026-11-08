@@ -70,7 +70,7 @@
     const today = u.dayKey(u.nowSec());
     let s = '';
     if (k.date && k.date !== today) s = u.dayTitle(k.date);
-    if (k.time) s += (s ? ', ' : '') + k.time;
+    if (k.time) s += (s ? ', ' : '') + u.clockStr(k.time);
     return s;
   }
 

@@ -48,10 +48,11 @@
     name: (v) => typeof v === 'string' && v.length <= 30, // как обращаться к пользователю
     asked: (v) => v === true,                             // уже спрашивали имя
     wunit: (v) => v === 'kg' || v === 'lb',               // единицы веса
+    datefmt: (v) => v === 'eu' || v === 'us',             // формат дат и времени
     wgoal: (v) => v === 0 || (Number.isFinite(v) && v >= 20 && v <= 400), // цель по весу, кг (0 — нет)
   };
   function defaultPrefs() {
-    return { lang: 'auto', theme: 'auto', accent: 'auto', bg: 0, chart: 'bars', glass: 'liquid', name: '', asked: false, wunit: 'kg', wgoal: 0 };
+    return { lang: 'auto', theme: 'auto', accent: 'auto', bg: 0, chart: 'bars', glass: 'liquid', name: '', asked: false, wunit: 'kg', wgoal: 0, datefmt: 'eu' };
   }
   function sanitizePrefs(pr) {
     const out = defaultPrefs();
@@ -560,6 +561,8 @@
     if (key === 'lang') {
       PF.i18n.setLang(value);
       emit('lang');
+    } else if (key === 'datefmt') {
+      emit('lang'); // подписи с датами перерисуются
     } else if (key === 'theme' || key === 'accent' || key === 'bg' || key === 'glass') {
       emit('theme');
     }
