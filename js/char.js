@@ -819,6 +819,30 @@
       } },
   ];
 
+  // ===================== ЭКСКЛЮЗИВЫ PREMIUM =====================
+  // Есть у всех подписчиков бесплатно (rarity: 'premium').
+  ITEMS.push(
+    { id: 'acc_aura', cat: 'acc', name: 'Золотая аура', en: 'Golden aura', style: 'fantasy', rarity: 'premium', price: 0, part: 'torso',
+      pal: { G: '#ffd54a', W: '#fff6c8' },
+      draw(g, c, p) {
+        const a = g.layer('fx-a', true);
+        a.pts([[5, 7], [26, 11], [7, 20], [25, 24], [3, 15], [28, 18], [15, 0]], p.G);
+        a.pts([[6, 7], [5, 6], [27, 11], [26, 10]], p.W);
+        const b2 = g.layer('fx-b', true);
+        b2.pts([[4, 11], [27, 6], [6, 26], [27, 21], [2, 20], [24, 2], [9, 2]], p.G);
+        b2.pts([[4, 10], [3, 11], [27, 5], [28, 6]], p.W);
+        g.layer('fx-pulse', true).pts([[8, 16], [23, 16], [8, 24], [23, 24], [10, 9], [21, 9]], p.G);
+      } },
+    { id: 'acc_premcrown', cat: 'acc', name: 'Корона Premium', en: 'Premium crown', style: 'fantasy', rarity: 'premium', price: 0,
+      pal: { G: '#f2c230', D: '#b8860b', V: '#8b5cf6' },
+      draw(g, c, p) {
+        g.hline(11, 20, 2, p.G); g.hline(11, 20, 3, p.D);
+        g.pts([[11, 1], [12, 0], [14, 1], [15, 0], [16, 0], [17, 1], [19, 0], [20, 1]], p.G);
+        g.pts([[13, 2], [18, 2]], p.V); g.pts([[15, 2], [16, 2]], '#ffffff');
+        g.layer('fx-pulse', true).pts([[15, 1], [16, 1], [12, 0], [19, 0]], '#fff3a0');
+      } }
+  );
+
   // ===================== ТАНЦЫ =====================
   // Танец — это несколько кадров. В каждом кадре части тела сдвигаются (T) и поворачиваются (R)
   // вокруг своих точек (плечо, бедро, шея). Кадры сменяются рывком, как в пиксельных играх.
@@ -925,6 +949,14 @@
       { larm: T(0, 0) + R(90), rarm: T(0, -4) + R(-90), torso: T(0, -1) },
       { rarm: T(0, -2) + R(-90) },
     ] },
+    victory: { dur: 1.6, frames: [
+      { larm: R(165), rarm: R(-165), all: T(0, -5) },
+      { larm: R(150), rarm: R(-150), all: T(0, 0) },
+      { larm: R(165), rarm: R(-165), all: T(0, -5) + 'scaleX(-1)' },
+      { larm: R(150), rarm: R(-150), all: T(0, 0) + 'scaleX(-1)' },
+      { larm: R(90), rarm: R(-90), all: T(0, -2) },
+      { larm: R(165), rarm: R(-165), all: T(0, -6), head: R(-6) },
+    ] },
     charleston: { dur: 0.8, frames: [
       { legl: T(0, -2) + R(32), rarm: R(-45), larm: R(10), all: T(0, -1) },
       { legr: T(0, -2) + R(-32), larm: R(45), rarm: R(-10), all: T(0, -1) },
@@ -981,6 +1013,7 @@
     ['gangnam', 'Гангнам', 'Gangnam Style', 'street', 'rare', 800],
     ['moonwalk', 'Лунная походка', 'Moonwalk', 'classic', 'rare', 900],
   ];
+  DANCE_ITEMS.push(['victory', 'Победный', 'Victory', 'fantasy', 'premium', 0]);
   DANCE_ITEMS.forEach(([dance, name, en, style, rarity, price]) => {
     ITEMS.push({ id: 'dance_' + dance, cat: 'dance', name, en, style, rarity, price, dance, draw() {} });
   });
@@ -1004,6 +1037,7 @@
     common: { name: 'обычная', color: '#9aa0a8' },
     rare: { name: 'редкая', color: '#3b82f6' },
     legendary: { name: 'легендарная', color: '#f59e0b' },
+    premium: { name: 'эксклюзив Premium', color: '#c9a227' },
   };
   const STYLES = { base: 'Базовый', sport: 'Спорт', classic: 'Классика', street: 'Уличный', fantasy: 'Фэнтези' };
 

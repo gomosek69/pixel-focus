@@ -151,6 +151,7 @@
   }
 
   const hasOpenSheet = () => stack.length > 0;
+  function closeAllSheets() { stack.slice().reverse().forEach((s) => s.close()); }
 
   // ---------- подтверждение ----------
 
@@ -217,5 +218,5 @@
     setTimeout(() => el.remove(), 1700);
   }
 
-  PF.ui = { icon, coin, segs, floatCoins, openSheet, closeTopSheet, hasOpenSheet, confirm, toast, haptic };
+  PF.ui = { icon, coin, segs, floatCoins, closeAllSheets, openSheet, closeTopSheet, hasOpenSheet, confirm, toast, haptic };
 })(window.PF);

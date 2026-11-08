@@ -11,6 +11,7 @@
   const nm = (it) => esc(C.itemName(it));
 
   let root = null;
+  const prem = () => PF.premium.isPremium();
   let mode = 'wardrobe'; // wardrobe | shop
   let cat = 'hair';
 
@@ -77,7 +78,7 @@
     });
     return '<div class="card pad color-card">' +
       '<div class="color-head"><b>' + t('Цвет: {0}', nm(it)) + '</b>' +
-      '<span class="hint">' + t('новый цвет — {0} мон.', u.num(price)) + '</span></div>' +
+      '<span class="hint">' + (prem() ? t('новый цвет — {0} мон.', u.num(price)) : '⭐ ' + t('Перекраска — в Premium')) + '</span></div>' +
       '<div class="cswatches">' + sw + '</div></div>';
   }
 
@@ -86,6 +87,7 @@
     const it = C.byId[id];
     if (!it || !it.pal) return;
     if (val === 'orig') { store.setColor(id, null); return; }
+    if (!prem()) { PF.premium.paywall(t('Перекраска одежды — в Premium')); return; }
     const idx = Number(val);
     if (store.ownsColor(id, idx)) { store.setColor(id, idx); ui.haptic('light'); return; }
     openColorBuy(it, idx);
@@ -125,7 +127,7 @@
     const r = C.RARITY[it.rarity];
     const override = {};
     override[it.cat] = it.id;
-    return '<button class="item r-' + it.rarity + (opts.on ? ' on' : '') + '" data-item="' + it.id + '">' +
+    return '<button class="item r-' + it.rarity + (opts.on ? ' on' : '') + (opts.locked ? ' locked' : '') + '" data-item="' + it.id + '">' +
       '<span class="item-pic">' + C.svg(store.look(override), 128) + '</span>' +
       '<span class="item-name">' + nm(it) + '</span>' +
       '<span class="item-sub" style="color:' + r.color + '">' + t(C.STYLES[it.style]) + ' · ' + t(r.name) + '</span>' +
@@ -135,10 +137,15 @@
   function wardrobeItems() {
     const eq = store.equipped();
     const list = C.ITEMS.filter((it) => it.cat === cat && store.owns(it.id));
-    let html = list.map((it) => card(it, {
-      on: eq[cat] === it.id,
-      foot: eq[cat] === it.id ? '<b class="badge">' + t('Надето') + '</b>' : t('Надеть'),
-    })).join('');
+    let html = list.map((it) => {
+      const lockedItem = !store.usable(it.id);
+      return card(it, {
+        on: eq[cat] === it.id,
+        locked: lockedItem,
+        foot: lockedItem ? '<span class="prib">⭐ Premium</span>'
+          : eq[cat] === it.id ? '<b class="badge">' + t('Надето') + '</b>' : t('Надеть'),
+      });
+    }).join('');
     if (cat === 'acc' || cat === 'dance') {
       const none = {};
       none[cat] = null;
@@ -154,12 +161,16 @@
   }
 
   function shopItems() {
-    const list = C.ITEMS.filter((it) => it.cat === cat && it.rarity !== 'base').sort((a, b) => a.price - b.price);
-    return list.map((it) => card(it, {
-      on: false,
-      foot: store.owns(it.id) ? '<b class="badge">' + t('Куплено') + '</b>' :
-        '<span class="price">' + ui.coin() + u.num(it.price) + '</span>',
-    })).join('');
+    const list = C.ITEMS.filter((it) => it.cat === cat && it.rarity !== 'base')
+      .sort((a, b) => (b.rarity === 'premium') - (a.rarity === 'premium') || a.price - b.price);
+    return list.map((it) => {
+      let foot;
+      if (it.rarity === 'premium') foot = prem() ? '<b class="badge">' + t('Ваше') + '</b>' : '<span class="prib">⭐ ' + t('Бесплатно с Premium') + '</span>';
+      else if (store.owns(it.id)) foot = '<b class="badge">' + t('Куплено') + '</b>';
+      else if (store.premiumOnly(it.id) && !prem()) foot = '<span class="prib">⭐ Premium · ' + u.num(it.price) + '</span>';
+      else foot = '<span class="price">' + ui.coin() + u.num(it.price) + '</span>';
+      return card(it, { on: false, foot });
+    }).join('');
   }
 
   // ---------- нажатия ----------
@@ -198,6 +209,7 @@
   function onWardrobe(id) {
     if (id === 'none') { store.unequip(cat); hop(); return; }
     const it = C.byId[id];
+    if (!store.usable(id)) { PF.premium.paywall(t('Эта вещь работает с Premium')); return; }
     const eq = store.equipped();
     if (eq[it.cat] === id) {
       // Повторное нажатие снимает вещь (кроме причёски и базовых вещей).
@@ -214,7 +226,8 @@
     const it = C.byId[id];
     const r = C.RARITY[it.rarity];
     const owned = store.owns(id);
-    const err = owned ? null : store.cantBuy(id);
+    const needPrem = (store.premiumOnly(id) || it.rarity === 'premium') && !prem();
+    const err = owned || needPrem ? null : store.cantBuy(id);
     const override = {};
     override[it.cat] = id;
     ui.openSheet({
@@ -223,13 +236,19 @@
         '<h3 class="center">' + nm(it) + '</h3>' +
         '<div class="center item-sub" style="color:' + r.color + '">' + t(C.STYLES[it.style]) + ' · ' + t(r.name) + '</div>' +
         (it.pal ? '<div class="center hint">' + t('После покупки цвет можно сменить в гардеробе.') + '</div>' : '') +
-        (owned
+        (needPrem
+          ? '<div class="try-price">⭐ Premium</div>' +
+            '<div class="center hint">' + (it.rarity === 'premium' ? t('Бесплатно для подписчиков Premium') : t('Покупка за {0} мон. — для подписчиков Premium', u.num(it.price))) + '</div>' +
+            '<div class="btn-col"><button class="btn btn-premium" id="iPrem">' + t('Открыть с Premium') + '</button>'
+          : owned
           ? '<div class="btn-col"><button class="btn btn-primary" id="iWear">' + t('Надеть') + '</button>'
           : '<div class="try-price">' + ui.coin('big') + u.num(it.price) + '</div>' +
             (err ? '<div class="form-err center">' + esc(err) + '</div>' : '') +
             '<div class="btn-col"><button class="btn btn-primary" id="iBuy"' + (err ? ' disabled' : '') + '>' + t('Купить') + '</button>') +
         '<button class="btn btn-ghost" data-close>' + t('Закрыть') + '</button></div>',
       onMount(el, api) {
+        const pb = el.querySelector('#iPrem');
+        if (pb) pb.addEventListener('click', () => { api.close(); PF.premium.paywall(t('Редкие вещи, танцы и эксклюзивы — в Premium')); });
         const wear = el.querySelector('#iWear');
         if (wear) wear.addEventListener('click', () => {
           store.equip(id);

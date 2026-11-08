@@ -10,6 +10,14 @@
   const t = PF.t;
 
   let root = null;
+  const prem = () => PF.premium.isPremium();
+  const openCount = () => store.S.tasks.filter((k) => !k.done).length;
+  // Без Premium — не больше 3 невыполненных задач. Возвращает true, если можно добавить.
+  function canAdd() {
+    if (prem() || openCount() < store.FREE_TASKS) return true;
+    PF.premium.paywall(t('У вас {0} из {1} задач. С Premium — без ограничений ∞', openCount(), store.FREE_TASKS));
+    return false;
+  }
   let justToggled = null; // задача, которую только что отметили (для анимации галочки)
 
   // Ключ для сортировки: дата + время (без времени — в конце дня).
@@ -41,6 +49,8 @@
         : '<div class="empty small">' + empty + '</div>');
     root.innerHTML =
       '<header class="top top-row"><h1>' + t('Задачи') + '</h1>' +
+      (prem() ? '' : '<button class="task-limit' + (openCount() >= store.FREE_TASKS ? ' full' : '') + '" data-action="premium">' +
+        t('{0} из {1}', openCount(), store.FREE_TASKS) + ' · ⭐ ∞</button>') +
       '  <button class="btn-small" data-action="add">' + ui.icon('plus') + t('Задача') + '</button></header>' +
       '<form class="quick card" id="quick" autocomplete="off">' +
       '  <input id="quickTitle" maxlength="200" placeholder="' + esc(t('Новая задача без даты…')) + '">' +
@@ -57,6 +67,7 @@
       const inp = root.querySelector('#quickTitle');
       const title = inp.value;
       if (!title.trim()) { inp.focus(); return; }
+      if (!canAdd()) return;
       const err = store.addTask({ title });
       if (err) { ui.toast(err); return; }
       ui.haptic('light');
@@ -118,7 +129,10 @@
     const id = btn.dataset.id;
     const k = id && store.S.tasks.find((x) => x.id === id);
     const action = btn.dataset.action;
-    if (action === 'add') {
+    if (action === 'premium') {
+      PF.premium.paywall(t('Безлимитные задачи — в Premium'));
+    } else if (action === 'add') {
+      if (!canAdd()) return;
       openForm(null);
     } else if (action === 'edit' && k) {
       openForm(k);
@@ -130,6 +144,8 @@
       ui.haptic(k.done ? 'success' : 'light');
       if (res.rec) ui.toast(t('Задача выполнена. Записано: {0}, {1}', t(ACTS[res.rec.a].name), u.durShort(res.rec.e - res.rec.s)));
       else if (res.short) ui.toast(t('Занятие было короче минуты и не сохранено'));
+    } else if (action === 'start' && k && !prem()) {
+      PF.premium.paywall(t('Запуск занятия из задачи — в Premium'));
     } else if (action === 'start' && k) {
       const res = store.start(btn.dataset.a, { t: k.title, taskId: k.id });
       ui.haptic('medium');
@@ -184,6 +200,7 @@
         }));
         const save = () => {
           const f = { title: $('#tTitle').value, date: $('#tDate').value, time: $('#tTime').value };
+          if (!isEdit && !canAdd()) return;
           const err = isEdit ? store.updateTask(k.id, f) : store.addTask(f);
           if (err) { $('#tErr').textContent = err; ui.haptic('error'); return; }
           ui.haptic('success');
