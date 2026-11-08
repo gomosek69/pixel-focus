@@ -224,6 +224,9 @@
     });
     window.addEventListener('pagehide', () => PF.store.flush());
 
+    // Заставка с приветствием; при первом заходе — вопрос, как обращаться.
+    PF.greet.onStart();
+
     setInterval(tick, 1000);
     if (PF.migratedNotice) PF.ui.toast(PF.t(PF.migratedNotice), true);
     else if (PF.store.storageNearlyFull()) {

@@ -35,9 +35,11 @@
     bg: (v) => Number.isInteger(v) && v >= 0 && v < 16,
     chart: (v) => ['bars', 'percent', 'pie', 'lines', 'cumulative'].includes(v),
     glass: (v) => ['liquid', 'frosted'].includes(v),
+    name: (v) => typeof v === 'string' && v.length <= 30, // как обращаться к пользователю
+    asked: (v) => v === true,                             // уже спрашивали имя
   };
   function defaultPrefs() {
-    return { lang: 'auto', theme: 'auto', accent: 'auto', bg: 0, chart: 'bars', glass: 'liquid' };
+    return { lang: 'auto', theme: 'auto', accent: 'auto', bg: 0, chart: 'bars', glass: 'liquid', name: '', asked: false };
   }
   function sanitizePrefs(pr) {
     const out = defaultPrefs();

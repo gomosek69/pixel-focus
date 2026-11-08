@@ -40,6 +40,9 @@
         ? '<div class="card warn"><b>' + t('Облако Telegram почти заполнено: {0} из 1024 ячеек.', store.keyCount()) + '</b><br>' +
           t('Сохраните резервную копию и попросите уплотнить хранение или убрать старые записи в архив. Когда ячейки закончатся, новые записи перестанут сохраняться.') + '</div>'
         : '') +
+      '<div class="group-title">' + t('Профиль') + '</div>' +
+      '<div class="card list"><button class="row" data-action="name">👋<span>' + t('Как к вам обращаться') + '</span>' +
+      '<b class="row-val">' + u.esc(PF.greet.name() || t('не указано')) + '</b></button></div>' +
       '<div class="group-title">Язык · Language</div>' +
       '<div class="seg seg-main lang-seg" data-seg="lang">' +
       langBtn('auto', t('Как в Telegram')) + langBtn('ru', 'Русский') + langBtn('en', 'English') +
@@ -117,6 +120,7 @@
     if (!btn) return;
     const action = btn.dataset.action;
 
+    if (action === 'name') { PF.greet.askName(false); return; }
     if (action === 'download') {
       await store.flush();
       try {

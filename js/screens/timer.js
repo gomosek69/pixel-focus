@@ -21,6 +21,7 @@
   function render(el) {
     root = el;
     root.innerHTML =
+      '<div class="greet-line">' + esc(PF.greet.short()) + '</div>' +
       '<header class="top top-row"><h1>' + t('Таймер') + '</h1>' +
       '  <button class="balance" id="balance" data-action="rates"></button></header>' +
       '<section id="current"></section>' +
