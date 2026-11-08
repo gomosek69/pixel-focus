@@ -171,18 +171,39 @@
       this.part = new Int8Array(N * NH);
       this.cur = P.torso;
       this.fx = [];
+      // Собственные пиксели каждой части тела — в том числе закрытые другими частями.
+      // Когда в танце голова или рука сдвигается, под ней видно то, что там нарисовано
+      // (воротник, плечо, волосы за спиной), а не дыра.
+      this.own = PARTS.map(() => ({ m: new Array(N * NH).fill(null), t: new Uint8Array(N * NH), raw: new Array(N * NH).fill(null) }));
     }
     set(x, y, m, tone) {
       x = Math.round(x); y = Math.round(y);
       if (x < 0 || y < -OY || x >= N || y >= N) return;
       const i = IX(x, y);
       this.m[i] = m; this.t[i] = tone; this.raw[i] = null; this.part[i] = this.cur;
+      const o = this.own[this.cur]; o.m[i] = m; o.t[i] = tone; o.raw[i] = null;
     }
     px(x, y, hex) {
       x = Math.round(x); y = Math.round(y);
       if (x < 0 || y < -OY || x >= N || y >= N) return;
       const i = IX(x, y);
       this.raw[i] = hex; if (!this.m[i]) this.m[i] = mat(hex); this.part[i] = this.cur;
+      const o = this.own[this.cur]; o.raw[i] = hex; if (!o.m[i]) o.m[i] = mat(hex);
+    }
+    // Передать пиксель другой части тела (вместе с её собственной копией).
+    reassign(i, part) {
+      const from = this.own[this.part[i]], to = this.own[part];
+      to.m[i] = from.m[i]; to.t[i] = from.t[i]; to.raw[i] = from.raw[i];
+      from.m[i] = null; from.raw[i] = null;
+      this.part[i] = part;
+    }
+    // После всех правок (тени по краям, перелив волос) — обновить копии видимых пикселей.
+    syncOwn() {
+      for (let i = 0; i < N * NH; i++) {
+        if (!this.m[i]) continue;
+        const o = this.own[this.part[i]];
+        o.m[i] = this.m[i]; o.t[i] = this.t[i]; o.raw[i] = this.raw[i];
+      }
     }
     pts(list, hex) { list.forEach(([x, y]) => this.px(x, y, hex)); }
     filled(x, y) { return x >= 0 && y >= -OY && x < N && y < N && !!this.m[IX(x, y)]; }
@@ -220,7 +241,10 @@
       mask.forEach((i) => {
         const x = i % N, y = YI(i);
         const onEdge = !mask.has(i - 1) || !mask.has(i + 1) || !mask.has(i - N) || !mask.has(i + N);
-        if (onEdge && (opts.edge === true || (opts.edge === 'bottom' && !mask.has(i + N)))) c.t[i] = Math.max(c.t[i], et);
+        if (onEdge && (opts.edge === true || (opts.edge === 'bottom' && !mask.has(i + N)))) {
+          c.t[i] = Math.max(c.t[i], et);
+          if (c.own) c.own[c.part[i]].t[i] = c.t[i];
+        }
       });
     }
     return mask;
@@ -295,18 +319,23 @@
   function drawBody(c, k) {
     const G = k.G, skin = mat(k.skin, true), H = G.H;
     const S = { edge: true, soft: true };
+    // плечи (часть туловища) под верхом рук: когда рука поднимается, плечо остаётся на месте
+    c.cur = P.torso; rr(c, G.ax0, G.ay0, G.ax1 + 1, G.ay0 + 4, 2, skin, S); rr(c, G.bx0 - 1, G.ay0, G.bx1, G.ay0 + 4, 2, skin, S);
     c.cur = P.legl; rr(c, G.lx0, G.ly0, G.lx1, G.ly1, 2, skin, S); ell(c, 26.5, 59, 4, 2.2, skin, S);
     c.cur = P.legr; rr(c, G.rx0, G.ly0, G.rx1, G.ly1, 2, skin, S); ell(c, 36.5, 59, 4, 2.2, skin, S);
     c.cur = P.larm; rr(c, G.ax0, G.ay0, G.ax1, G.ay1, 2, skin, S); ell(c, G.ax0 + 1.8, G.ay1 + 1.5, 2.6, 2.4, skin, S);
     c.cur = P.rarm; rr(c, G.bx0, G.ay0, G.bx1, G.ay1, 2, skin, S); ell(c, G.bx0 + 2.2, G.ay1 + 1.5, 2.6, 2.4, skin, S);
     c.cur = P.torso; torsoShape(c, G, skin, { soft: true });
-    // шея относится к туловищу: при наклоне головы в танце она не «выезжает» на воротник
+    // шея относится к туловищу и лежит в тени под подбородком: так подбородок
+    // не сливается с шеей, когда голова наклоняется в танце
     c.cur = P.torso;
-    rr(c, 29, 28, 35, 33, 1, skin, { minTone: 2, maxTone: 2 });
+    rr(c, 29, 27, 35, 33, 1, skin, { minTone: 3, maxTone: 3 });
     c.cur = P.head;
     ell(c, H.cx - H.rx + 0.5, H.cy + 2, 2.4, 3.2, skin, S);
     ell(c, H.cx + H.rx - 0.5, H.cy + 2, 2.4, 3.2, skin, S);
-    ell(c, H.cx, H.cy, H.rx, H.ry, skin, S);
+    const faceMask = ell(c, H.cx, H.cy, H.rx, H.ry, skin, S);
+    // чёткая линия подбородка: нижний край лица — цветом контура кожи
+    faceMask.forEach((i) => { if (YI(i) >= H.cy + 6 && !faceMask.has(i + N)) { c.m[i] = skin; c.t[i] = 3; c.raw[i] = skin.out; c.own[P.head].raw[i] = skin.out; } });
     drawFace(c, k);
   }
 
@@ -350,6 +379,10 @@
     opts = opts || {};
     const y1 = len === 'long' ? G.ay1 : len === 'mid' ? G.ay0 + 8 : G.ay0 + 5;
     const w = opts.wide || 0;
+    // плечи одежды (туловище) под верхом рукавов — видны, когда рука поднимается
+    c.cur = P.torso;
+    rr(c, G.ax0 - 1, G.ay0, G.ax1 + 1, G.ay0 + 4, 2, m, { edge: true });
+    rr(c, G.bx0 - 1, G.ay0, G.bx1 + 1, G.ay0 + 4, 2, m, { edge: true });
     c.cur = P.larm;
     if (w) poly(c, [[G.ax0 - 1, G.ay0], [G.ax1 + 1, G.ay0], [G.ax1 + 1, y1 + 1], [G.ax0 - 1 - w, y1 + 1]], m, { edge: true });
     else rr(c, G.ax0 - 1, G.ay0, G.ax1 + 1, y1, 2, m, { edge: true });
@@ -500,20 +533,22 @@
     o = o || {};
     const H = k.G.H, h = o.mat || mat(k.hair), cx = H.cx;
     c.cur = P.head;
-    const mask = fill(c, [cx - w - 1, H.cy - 6, cx + w + 1, bottom + 2], (x, y) => {
+    const mask = fill(c, [cx - w - 1, H.cy - 2, cx + w + 1, bottom + 2], (x, y) => {
       const dx = Math.abs(x - cx);
+      // верх скруглён: при наклоне головы из-под неё не выглядывает квадратный угол
+      const topY = H.cy - 2 + Math.max(0, dx - (w - 6)) * 1.1;
+      if (y < topY) return null;
       const wv = o.wave ? Math.sin(x * 0.9) * 1.6 : 0;
       const b = bottom + wv - Math.max(0, dx - w + 3) * 1.4 - (o.point ? Math.abs(Math.sin(x * 0.75)) * 2.5 : 0);
       if (dx > w || y > b) return null;
-      // ниже плеч волосы не шире спины: прячутся за туловищем и не торчат по бокам,
-      // когда руки поднимаются в танце (длину спереди показывают пряди на плечах)
-      if (y > H.cy + 13 && dx > 8.5) return null;
       const nx = (x - cx) / w;
       return [nx, 0.1, Math.sqrt(Math.max(0, 1 - nx * nx))];
     }, h, { edge: true, edgeTone: 3, minTone: 1 });
     // нижняя часть волос за спиной двигается с туловищем, а не с головой
     // (иначе при наклоне головы в танце волосы «разлетаются» за руки и ноги)
-    mask.forEach((i) => { if (YI(i) >= H.cy + 13) c.part[i] = P.torso; });
+    // волосы за спиной двигаются с туловищем: при наклоне головы не «разлетаются»,
+    // а когда руки поднимаются, за ними видна целая прядь (её пиксели хранятся под руками)
+    mask.forEach((i) => c.reassign(i, P.torso));
     // пряди вдоль волос
     for (let x = cx - w + 3; x <= cx + w - 3; x += 4) {
       for (let y = H.cy + 4; y < bottom - 3; y++) {
@@ -561,13 +596,11 @@
         partLines(c, r.h, 30, 5, [[22, 12], [26, 9], [36, 9], [41, 12]]);
       } },
     { id: 'hair_long', cat: 'hair', name: 'Длинная', en: 'Long', style: 'base', rarity: 'base', price: 0,
-      back(c, k) { backHair(c, k, 44, 16, { wave: true }); },
+      back(c, k) { backHair(c, k, 45, 18.5, { wave: true }); },
       draw(c, k) {
         const H = k.G.H;
         const r = hairMass(c, k, { fringe: feathers(20, 44, 4, H.cy - 9, H.cy - 2, 1.5, -0.2), side: H.cy + 9, sideIn: 10.5 });
         partLines(c, r.h, 33, 5, [[23, 12], [27, 9], [38, 9], [42, 13]]);
-        frontLock(c, k, -1, 40, 4, { wave: true });
-        frontLock(c, k, 1, 40, 4, { wave: true });
       } },
     { id: 'hair_twintails', cat: 'hair', name: 'Высокие хвостики', en: 'High twin tails', style: 'street', rarity: 'common', price: 320,
       draw(c, k) {
@@ -708,16 +741,14 @@
         partLines(c, r.h, 32, 4, [[22, 11], [27, 8], [37, 8], [42, 11]]);
       } },
     { id: 'hair_wavy', cat: 'hair', name: 'Длинные волны', en: 'Long waves', style: 'classic', rarity: 'rare', price: 700,
-      back(c, k) { backHair(c, k, 48, 17, { wave: true }); },
+      back(c, k) { backHair(c, k, 48, 19, { wave: true }); },
       draw(c, k) {
         const H = k.G.H;
         const r = hairMass(c, k, { fringe: fringeLine([[18, H.cy - 2], [22, H.cy - 5], [27, H.cy - 8], [31, H.cy - 9], [35, H.cy - 6], [39, H.cy - 4], [43, H.cy - 2], [46, H.cy]]), side: H.cy + 10, sideIn: 10.5 });
         partLines(c, r.h, 31, 5, [[22, 12], [37, 8], [42, 12]]);
-        frontLock(c, k, -1, 44, 5, { wave: true });
-        frontLock(c, k, 1, 44, 5, { wave: true });
       } },
     { id: 'hair_braids', cat: 'hair', name: 'Косички', en: 'Braids', style: 'street', rarity: 'rare', price: 800,
-      back(c, k) { backHair(c, k, 42, 16, { point: true }); },
+      back(c, k) { backHair(c, k, 42, 17.5, { point: true }); },
       draw(c, k) {
         const H = k.G.H;
         const r = hairMass(c, k, { fringe: feathers(20, 44, 5, H.cy - 9, H.cy - 4, 1, 0), side: H.cy + 4, sideIn: 11 });
@@ -729,7 +760,7 @@
         partLines(c, r.h, 32, 5, [[22, 12], [42, 12]]);
       } },
     { id: 'hair_elf', cat: 'hair', name: 'Эльфийские волосы', en: 'Elven hair', style: 'fantasy', rarity: 'rare', price: 1000,
-      back(c, k) { backHair(c, k, 52, 16, { point: true }); },
+      back(c, k) { backHair(c, k, 50, 18.5, { point: true }); },
       draw(c, k) {
         const H = k.G.H;
         // острые уши выглядывают из-под волос
@@ -739,8 +770,6 @@
         poly(c, [[16, 18], [11, 12], [17, 23]], sk, { edge: true, soft: true }); poly(c, [[48, 18], [53, 12], [47, 23]], sk, { edge: true, soft: true });
         // обруч с камнем
         line(c, 20, 11, 44, 11, mat('#e8c547'), 0); ell(c, 32, 11, 1.6, 1.3, mat('#3ec1d3'), { tone: 0 });
-        frontLock(c, k, -1, 44, 4);
-        frontLock(c, k, 1, 44, 4);
         partLines(c, r.h, 32, 5, [[22, 13], [42, 13]]);
       } },
     { id: 'hair_messy', cat: 'hair', name: 'Растрёпанные', en: 'Messy', style: 'street', rarity: 'common', price: 230,
@@ -764,7 +793,7 @@
         [[18, H.cy + 8], [21, H.cy + 9], [44, H.cy + 9], [47, H.cy + 8]].forEach(([x, y]) => { c.set(x, y, r.h, 3); });
       } },
     { id: 'hair_wolf', cat: 'hair', name: 'Волчья стрижка', en: 'Wolf cut', style: 'street', rarity: 'rare', price: 620,
-      back(c, k) { backHair(c, k, 36, 15, { point: true }); },
+      back(c, k) { backHair(c, k, 37, 17, { point: true }); },
       draw(c, k) {
         const H = k.G.H, h = mat(k.hair);
         // многослойная рваная стрижка: объём сверху, пряди-«перья» по бокам
@@ -1925,6 +1954,7 @@
       it.draw(c, k, p);
     });
     if (HAIR_LEGEND[look.hc]) legendHair(c, k, HAIR_LEGEND[look.hc]);
+    c.syncOwn();
     return c;
   }
 
@@ -1944,6 +1974,12 @@
       c.m[i] = mat(gradAt(L.grad, f));
       flow.cur = c.part[i];
       flow.set(i % N, YI(i), mat(gradAt(L.alt, f)), c.t[i]);
+    });
+    // скрытые копии волос (например, за руками) — тоже в перелив
+    c.own.forEach((o) => {
+      for (let i = 0; i < N * NH; i++) {
+        if (o.m[i] === hm && !o.raw[i]) o.m[i] = mat(gradAt(L.grad, (pos(i) - lo) / Math.max(1, hi - lo)));
+      }
     });
     const a = c.layer('fx-a', true), b = c.layer('fx-b', true);
     idx.forEach((i, n) => {
@@ -1998,6 +2034,49 @@
     return out;
   }
 
+  // Порядок групп в SVG: ноги, туловище, голова, руки (руки поверх, когда поднимаются).
+  const ORDER = ['legl', 'legr', 'torso', 'head', 'larm', 'rarm'];
+  const ORD = PARTS.map((name) => ORDER.indexOf(name));
+
+  // Раскладка готовой картинки по частям тела. В каждой части — её видимые пиксели и
+  // скрытые под другими частями (они проявляются, когда в танце часть сдвигается).
+  // Если видимый пиксель части лежит поверх части, которая рисуется позже (например,
+  // прядь волос поверх руки), он попадает в «передний» слой этой части.
+  function layered(c, img) {
+    const normal = PARTS.map(() => new Array(N * NH).fill(null));
+    const front = PARTS.map(() => new Array(N * NH).fill(null));
+    const color = (o, i) => (o.raw[i] ? o.raw[i] : o.m[i] ? o.m[i].t[o.t[i]] : null);
+    for (let i = 0; i < N * NH; i++) {
+      const top = img.c[i];
+      if (!top) continue;
+      const q = img.p[i];
+      let isFront = false;
+      for (let p = 0; p < PARTS.length; p++) {
+        if (p === q || !c.own[p].m[i]) continue;
+        if (ORD[p] > ORD[q]) isFront = true;
+        normal[p][i] = color(c.own[p], i); // скрытый пиксель другой части
+      }
+      (isFront ? front : normal)[q][i] = top;
+    }
+    return { normal, front };
+  }
+  function rectsOf(col) {
+    let out = '';
+    for (let y = -OY; y < N; y++) {
+      let x = 0;
+      while (x < N) {
+        const i = IX(x, y);
+        const v = col[i];
+        if (!v) { x++; continue; }
+        let w = 1;
+        while (x + w < N && col[i + w] === v) w++;
+        out += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="1" fill="' + v + '"/>';
+        x += w;
+      }
+    }
+    return out;
+  }
+
   // Точки вращения частей тела: плечи, бёдра, шея.
   function pivots(G) {
     return {
@@ -2014,8 +2093,12 @@
     if (r) return r;
     const c = compose(look);
     const img = paint(c, true);
+    const lay = layered(c, img);
     const fx = c.fx.map((l) => ({ cls: l.cls, glow: l.glow, back: l.back, img: paint(l.c, false) }));
-    const parts = PARTS.map((name, i) => ({ name, main: rects(img, i), fx: fx.map((l) => ({ cls: l.cls, glow: l.glow, back: l.back, html: rects(l.img, i) })) }));
+    const parts = PARTS.map((name, i) => ({
+      name, main: rectsOf(lay.normal[i]), front: rectsOf(lay.front[i]),
+      fx: fx.map((l) => ({ cls: l.cls, glow: l.glow, back: l.back, html: rects(l.img, i) })),
+    }));
     r = { parts, piv: pivots(geo(look.g)), glow: fx.some((l) => l.glow) };
     if (cache.size > 300) cache.clear();
     cache.set(key, r);
@@ -2030,10 +2113,9 @@
     const id = 'pfglow' + (++svgId);
     const dance = look.eq && look.eq.dance && byId[look.eq.dance] ? byId[look.eq.dance].dance : '';
     if (dance) ensureDanceCss();
-    // порядок: ноги, туловище, голова, руки (руки поверх, когда поднимаются)
-    const order = ['legl', 'legr', 'torso', 'head', 'larm', 'rarm'];
     let body = '';
-    order.forEach((name) => {
+    const open = (name) => { const [ox, oy] = r.piv[name]; return '<g class="pp pp-' + name + '" style="transform-origin:' + ox + 'px ' + oy + 'px">'; };
+    ORDER.forEach((name) => {
       const part = r.parts[PARTS.indexOf(name)];
       const [ox, oy] = r.piv[name];
       let inner = part.main;
@@ -2042,7 +2124,13 @@
         const g = '<g class="fx ' + f.cls + '"' + (f.glow ? ' filter="url(#' + id + ')"' : '') + '>' + f.html + '</g>';
         inner = f.back ? g + inner : inner + g;
       });
-      if (inner) body += '<g class="pp pp-' + name + '" style="transform-origin:' + ox + 'px ' + oy + 'px">' + inner + '</g>';
+      if (inner) body += open(name) + inner + '</g>';
+      void ox; void oy;
+    });
+    // передние слои (пряди поверх рук и т. п.) — после всех частей, двигаются со своей частью
+    ORDER.forEach((name) => {
+      const part = r.parts[PARTS.indexOf(name)];
+      if (part.front) body += open(name) + part.front + '</g>';
     });
     const defs = r.glow
       ? '<defs><filter id="' + id + '" x="-50%" y="-50%" width="200%" height="200%">' +
