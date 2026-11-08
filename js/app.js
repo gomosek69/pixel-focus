@@ -109,7 +109,7 @@
     if (anim) {
       // Поочерёдно проявить стеклянные элементы и заголовки (вложенные — вместе с родителем).
       // Ряды кнопок (.chart-types, .cat-tabs, .period-nav) появляются целиком, а не по одной кнопке.
-      const SEL = '.chart-types, .cat-tabs, .period-nav, .card, .act-btn, .item, .empty, .cat-tab, .ct-btn, .nav-btn, ' +
+      const SEL = '.chart-types, .cat-tabs, .period-nav, .card, .act-btn, .act-add, .icon-btn, .item, .empty, .cat-tab, .ct-btn, .nav-btn, ' +
         '.balance, .quick, .seg, .btn-small, h1, .group-title, .sec-head h2, .day-head, .note, .more';
       let i = 0;
       el.querySelectorAll(SEL).forEach((node) => {

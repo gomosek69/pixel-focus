@@ -41,6 +41,45 @@
       'data-look="' + field + '" data-val="' + i + '" aria-label="' + esc(names ? t(names[i]) : String(i + 1)) + '"></button>').join('') + '</div>';
   }
 
+  // Цвета волос: бесплатные, за монеты (с замком и ценой) и легендарные (с переливом).
+  function hairSwatches() {
+    const cur = store.look().hc;
+    return '<div class="swatches">' + C.HAIR.map((col, i) => {
+      const owned = store.ownsHair(i);
+      const leg = !!C.HAIR_LEGEND[i];
+      return '<button class="swatch' + (cur === i ? ' on' : '') + (owned ? '' : ' locked') + (leg ? ' legend' : '') + '" style="--sw:' + C.hairSwatch(i) + '" ' +
+        'data-hair="' + i + '" aria-label="' + esc(t(C.HAIR_NAMES[i])) + '">' +
+        (owned ? '' : '<span class="sw-price">' + u.num(C.HAIR_PRICE[i]) + '</span>') + '</button>';
+    }).join('') + '</div>';
+  }
+
+  // Окно покупки цвета волос: примерка и покупка.
+  function openHairBuy(i) {
+    const err = store.cantBuyHair(i);
+    const leg = !!C.HAIR_LEGEND[i];
+    ui.openSheet({
+      html:
+        '<div class="try-pic">' + C.svg(Object.assign(store.look(), { hc: i }), 256) + '</div>' +
+        '<h3 class="center">' + esc(t(C.HAIR_NAMES[i])) + '</h3>' +
+        '<p class="sheet-text center">' + t(leg ? 'Легендарный цвет волос: переливается и искрится. Подходит ко всем причёскам.' : 'Цвет волос подходит ко всем обычным причёскам.') + '</p>' +
+        '<div class="try-price">' + ui.coin('big') + u.num(C.HAIR_PRICE[i]) + '</div>' +
+        (err ? '<div class="form-err center">' + esc(err) + '</div>' : '') +
+        '<div class="btn-col"><button class="btn btn-primary" id="hBuy"' + (err ? ' disabled' : '') + '>' + t('Купить цвет') + '</button>' +
+        '<button class="btn btn-ghost" data-close>' + t('Закрыть') + '</button></div>',
+      onMount(el, api) {
+        const b = el.querySelector('#hBuy');
+        if (b && !err) b.addEventListener('click', () => {
+          const e2 = store.buyHair(i);
+          if (e2) { ui.toast(e2); return; }
+          ui.haptic('success');
+          api.close();
+          ui.toast(t('Цвет куплен: {0}', t(C.HAIR_NAMES[i])));
+          hop();
+        });
+      },
+    });
+  }
+
   function lookHtml() {
     const ch = store.S.char;
     return '<div class="group-title">' + t('Внешность') + '</div>' +
@@ -50,7 +89,7 @@
       '    <button class="seg-btn' + (ch.g === 'f' ? ' on' : '') + '" data-look="g" data-val="f">' + t('Женский') + '</button></div></div>' +
       '  <div class="look-row"><span>' + t('Кожа') + '</span>' + swatches('skin', C.SKINS) + '</div>' +
       '  <div class="look-row"><span>' + t('Глаза') + '</span>' + swatches('eyes', C.EYES, C.EYE_NAMES) + '</div>' +
-      '  <div class="look-row"><span>' + t('Волосы') + '</span>' + swatches('hc', C.HAIR, C.HAIR_NAMES) + '</div>' +
+      '  <div class="look-row hair-row"><span>' + t('Волосы') + '</span>' + hairSwatches() + '</div>' +
       '</div>' +
       '<div class="group-title">' + t('Одежда') + '</div>';
   }
@@ -165,6 +204,12 @@
   // ---------- нажатия ----------
 
   function onClick(e) {
+    const hb = e.target.closest('[data-hair]');
+    if (hb) {
+      const i = Number(hb.dataset.hair);
+      if (store.ownsHair(i)) { store.setLook('hc', i); ui.haptic('light'); } else openHairBuy(i);
+      return;
+    }
     const tg = e.target.closest('[data-mode],[data-cat],[data-look],[data-item],[data-color],[data-action]');
     if (!tg) return;
     if (tg.dataset.mode) {

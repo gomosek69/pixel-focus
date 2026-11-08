@@ -15,8 +15,26 @@
   const TR = PF.TRACKERS;
   const IDS = PF.TRACKER_IDS;
   const DAY = 86400;
-  const MOODS = ['😫', '😕', '😐', '🙂', '😄'];
   const MOOD_NAMES = ['Ужасно', 'Плохо', 'Нормально', 'Хорошо', 'Отлично'];
+  // Минималистичные лица: круг, глаза-точки, рот от грустного к радостному.
+  const MOOD_COLORS = ['#7c8aa5', '#8fa3bf', '#b0a68c', '#e2a400', '#ef8a1f'];
+  const MOUTHS = ['M8 17.2q4-4 8 0', 'M8.5 16.2q3.5-2 7 0', 'M8.5 15.5h7', 'M8.5 14.4q3.5 2.6 7 0', 'M7.8 13.8q4.2 5 8.4 0'];
+  function faceInner(v) {
+    const i = Math.max(0, Math.min(4, Math.round(v) - 1));
+    const eyes = i === 0
+      ? '<path d="M8 9.5l2 1M16 9.5l-2 1"/>'
+      : '<circle cx="9.2" cy="10" r="0.6" fill="currentColor"/><circle cx="14.8" cy="10" r="0.6" fill="currentColor"/>';
+    return '<circle cx="12" cy="12" r="9.5"/>' + eyes + '<path d="' + MOUTHS[i] + '"/>';
+  }
+  function moodFace(v, cls) {
+    const i = Math.max(0, Math.min(4, Math.round(v) - 1));
+    return '<svg class="mood-face ' + (cls || '') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="color:' + MOOD_COLORS[i] + '">' + faceInner(v) + '</svg>';
+  }
+  // Отметки чувств к записи настроения (хранятся битами).
+  const FEELINGS = ['Радость', 'Спокойствие', 'Благодарность', 'Вдохновение', 'Энергия', 'Любовь',
+    'Грусть', 'Тревога', 'Стресс', 'Усталость', 'Раздражение', 'Одиночество', 'Скука', 'Страх'];
+  const feelList = (f) => FEELINGS.filter((x, i) => f & (1 << i));
+  const feelChips = (f) => feelList(f).map((x) => '<span class="feel-chip' + (FEELINGS.indexOf(x) >= 6 ? ' sad' : '') + '">' + t(x) + '</span>').join('');
 
   let root = null;
   let open = null;      // открытый трекер (или null — список)
@@ -44,7 +62,7 @@
     if (id === 'weight') return fmtNum(wShow(e.v), 1);
     if (id === 'pressure') return Math.round(e.v) + '/' + Math.round(e.v2);
     if (id === 'sleep') return sleepText(e.v);
-    if (id === 'mood') return MOODS[Math.max(0, Math.min(4, Math.round(e.v) - 1))];
+    if (id === 'mood') return moodFace(e.v);
     if (id === 'water') return fmtNum(e.v, 1);
     return fmtNum(Math.round(e.v), 0);
   }
@@ -313,7 +331,8 @@
       const y = yOf(v).toFixed(1);
       g += '<line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + y + '" y2="' + y + '"/>' +
         '<text class="axis" x="' + (L - 6) + '" y="' + (Number(y) + 4) + '" text-anchor="end">' +
-        (id === 'mood' ? MOODS[Math.round(v) - 1] : axisLabel(id, v)) + '</text>';
+        (id === 'mood' ? '' : axisLabel(id, v)) + '</text>' +
+        (id === 'mood' ? '<svg x="' + (L - 18) + '" y="' + (Number(y) - 6) + '" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="' + MOOD_COLORS[Math.round(v) - 1] + '" stroke-width="2" stroke-linecap="round">' + faceInner(v).replace(/currentColor/g, MOOD_COLORS[Math.round(v) - 1]) + '</svg>' : '');
     }
     p.pts.forEach((pt, i) => {
       if (pt.label) g += '<text class="axis" x="' + xOf(i).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle">' + pt.label + '</text>';
@@ -385,7 +404,13 @@
     } else {
       const avg = vs.reduce((a, b) => a + b, 0) / vs.length;
       if (id === 'mood') {
-        rows += kv(t('Среднее'), MOODS[Math.round(avg) - 1] + ' ' + t(MOOD_NAMES[Math.round(avg) - 1]));
+        rows += kv(t('Среднее'), moodFace(avg, 'inline') + ' ' + t(MOOD_NAMES[Math.round(avg) - 1]));
+        // какие чувства отмечались чаще всего за период
+        const cnt = FEELINGS.map(() => 0);
+        store.S.me.mood.forEach((x) => { if (x.t >= p.s && x.t < p.e && x.v2) FEELINGS.forEach((f, i) => { if (x.v2 & (1 << i)) cnt[i]++; }); });
+        const top = cnt.map((n, i) => [n, i]).filter((q) => q[0]).sort((a, b) => b[0] - a[0]).slice(0, 4);
+        if (top.length) rows += '<div class="kv kv-feel"><span>' + t('Чаще всего') + '</span><span class="feel-top">' +
+          top.map(([n, i]) => '<span class="feel-chip' + (i >= 6 ? ' sad' : '') + '">' + t(FEELINGS[i]) + ' ×' + n + '</span>').join('') + '</span></div>';
       } else {
         rows += kv(t('Среднее'), full(id, { v: avg }));
         rows += kv(t('Минимум'), full(id, { v: Math.min(...vs) }));
@@ -413,6 +438,7 @@
       }
       html += '<button class="rec" data-entry="' + e.t + '"><span class="bar" style="background:' + TR[id].color + '"></span>' +
         '<span class="rec-main"><span class="rec-name">' + full(id, e) + (id === 'mood' ? ' ' + t(MOOD_NAMES[e.v - 1]) : '') + '</span>' +
+        (id === 'mood' && e.v2 ? '<span class="feel-row">' + feelChips(e.v2) + '</span>' : '') +
         '<span class="rec-time">' + u.hm(e.t) + '</span></span></button>';
     });
     html += '</div>';
@@ -535,8 +561,11 @@
     if (id === 'water') return num('vIn', t('Стаканы (по 250 мл)'), e ? e.v : 1, 1, 'numeric');
     if (id === 'steps') return num('vIn', t('Шаги'), e ? e.v : '', 1, 'numeric');
     if (id === 'mood') {
-      return '<div class="mood-pick">' + MOODS.map((m, i) => '<button type="button" class="mood-opt' + (e && e.v === i + 1 ? ' on' : '') + '" data-mood="' + (i + 1) + '">' +
-        '<span class="mood-em">' + m + '</span><span>' + t(MOOD_NAMES[i]) + '</span></button>').join('') + '</div>';
+      return '<div class="mood-pick">' + MOOD_NAMES.map((m, i) => '<button type="button" class="mood-opt' + (e && e.v === i + 1 ? ' on' : '') + '" data-mood="' + (i + 1) + '">' +
+        moodFace(i + 1, 'big') + '<span>' + t(m) + '</span></button>').join('') + '</div>' +
+        '<div class="field"><span>' + t('Что ты чувствуешь? (можно несколько)') + '</span><div class="feel-pick">' +
+        FEELINGS.map((f, i) => '<button type="button" class="feel-chip pick' + (i >= 6 ? ' sad' : '') + (e && e.v2 & (1 << i) ? ' on' : '') + '" data-feel="' + i + '">' + t(f) + '</button>').join('') +
+        '</div></div>';
     }
     return '';
   }
@@ -559,6 +588,11 @@
       onMount(el, api) {
         const $ = (s) => el.querySelector(s);
         let mood = e && id === 'mood' ? e.v : null;
+        let feel = e && id === 'mood' ? (e.v2 || 0) : 0;
+        el.querySelectorAll('[data-feel]').forEach((b) => b.addEventListener('click', () => {
+          feel ^= 1 << Number(b.dataset.feel);
+          b.classList.toggle('on', !!(feel & (1 << Number(b.dataset.feel))));
+        }));
         el.querySelectorAll('[data-mood]').forEach((b) => b.addEventListener('click', () => {
           mood = Number(b.dataset.mood);
           el.querySelectorAll('[data-mood]').forEach((x) => x.classList.toggle('on', x === b));
@@ -570,6 +604,7 @@
           if (id === 'mood') {
             if (!mood) { $('#fErr').textContent = t('Выберите настроение.'); return; }
             entry.v = mood;
+            if (feel) entry.v2 = feel;
           } else if (id === 'sleep') {
             const h = parseNum($('#hIn').value), m = parseNum($('#mIn').value || '0');
             entry.v = Number.isFinite(h) && Number.isFinite(m) && m >= 0 && m < 60 ? h + m / 60 : NaN;
