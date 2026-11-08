@@ -24,7 +24,8 @@
     root.innerHTML =
       '<div class="greet-line">' + esc(PF.greet.short()) + '</div>' +
       '<header class="top top-row"><h1>' + t('Таймер') + '</h1>' +
-      '  <button class="balance" id="balance" data-action="rates"></button></header>' +
+      '  <div class="top-right"><button class="balance" id="balance" data-action="rates"></button>' +
+      '  <button class="icon-btn gear" data-action="settings" aria-label="' + esc(t('Настройки')) + '">' + ui.icon('gear') + '</button></div></header>' +
       '<section id="current"></section>' +
       '<div class="sec-head acts-head"><h2>' + t('Занятия') + '</h2>' +
       '  <button class="btn-small" data-action="acts">' + ui.icon('gear') + t('Настроить') + '</button></div>' +
@@ -197,6 +198,8 @@
       if (PF.app) PF.app.switchTab('char');
     } else if (action === 'rates') {
       openRates();
+    } else if (action === 'settings') {
+      if (PF.app) PF.app.switchTab('settings');
     } else if (action === 'acts') {
       openActs();
     } else if (action === 'newact') {

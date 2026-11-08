@@ -9,7 +9,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '19';
+  var VERSION = '20';
 
   var CSS = ['css/style.css'];
   var JS = [
@@ -26,6 +26,7 @@
     'js/screens/tasks.js',
     'js/screens/stats.js',
     'js/screens/settings.js',
+    'js/screens/me.js',
     'js/app.js',
   ];
 

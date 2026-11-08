@@ -10,6 +10,7 @@
 // В хранилище:
 //   документ state         — текущее занятие;
 //   документы rec_ГГГГ_ММ   — записи месяца (по дате начала) в компактном виде [id, буква, s, e, t?, k?];
+//   документы me_<трекер>  — записи трекеров вкладки «Я»: [время, значение] или [время, верхнее, нижнее] (давление);
 //   документ acts          — свои занятия [id, название, цвет, значок, цена, 0/1 удалено].
 (function (PF) {
   'use strict';
@@ -27,7 +28,13 @@
   const START_BALANCE = 0;      // стартовый баланс
   const KEYS_WARN = 800;        // с этого числа ячеек облака показываем предупреждение
 
-  const S = { records: [], active: null, char: null, prefs: defaultPrefs(), tasks: [], acts: [] };
+  const S = { records: [], active: null, char: null, prefs: defaultPrefs(), tasks: [], acts: [], me: emptyMe() };
+
+  function emptyMe() {
+    const o = {};
+    PF.TRACKER_IDS.forEach((id) => { o[id] = []; });
+    return o;
+  }
 
   // Настройки по умолчанию.
   // lang: auto|ru|en; theme: auto|light|dark; accent: 'auto' или номер цвета; bg: номер фона; chart: вид графика.
@@ -40,9 +47,11 @@
     glass: (v) => ['liquid', 'frosted'].includes(v),
     name: (v) => typeof v === 'string' && v.length <= 30, // как обращаться к пользователю
     asked: (v) => v === true,                             // уже спрашивали имя
+    wunit: (v) => v === 'kg' || v === 'lb',               // единицы веса
+    wgoal: (v) => v === 0 || (Number.isFinite(v) && v >= 20 && v <= 400), // цель по весу, кг (0 — нет)
   };
   function defaultPrefs() {
-    return { lang: 'auto', theme: 'auto', accent: 'auto', bg: 0, chart: 'bars', glass: 'liquid', name: '', asked: false };
+    return { lang: 'auto', theme: 'auto', accent: 'auto', bg: 0, chart: 'bars', glass: 'liquid', name: '', asked: false, wunit: 'kg', wgoal: 0 };
   }
   function sanitizePrefs(pr) {
     const out = defaultPrefs();
@@ -231,6 +240,7 @@
           else if (n === 'prefs') payload[n] = S.prefs;
           else if (n === 'tasks') payload[n] = S.tasks.length ? S.tasks.map(encodeTask) : null;
           else if (n === 'acts') payload[n] = S.acts.length ? S.acts.map(encodeAct) : null;
+          else if (n.startsWith('me_')) { const l = S.me[n.slice(3)]; payload[n] = l && l.length ? l.map(encodeMe) : null; }
           else payload[n] = monthDoc(n);
         });
         return docs.writeDocs(payload);
@@ -260,6 +270,7 @@
     if (PF.i18n) PF.i18n.setLang(S.prefs.lang);
     S.acts = decodeActs(loaded.acts);
     syncActs();
+    S.me = decodeMeAll((id) => loaded['me_' + id]);
     Object.keys(loaded).forEach((name) => {
       if (!name.startsWith('rec_') || !Array.isArray(loaded[name])) return;
       loaded[name].forEach((arr) => {
@@ -728,6 +739,120 @@
     markTasks();
   }
 
+  // ---------- трекеры вкладки «Я» ----------
+  // Запись: { t: время (сек), v: значение, v2?: нижнее давление }. Время записи уникально
+  // внутри трекера и служит её идентификатором.
+
+  const encodeMe = (e) => (e.v2 !== undefined ? [e.t, e.v, e.v2] : [e.t, e.v]);
+
+  function roundTo(v, step) {
+    const d = step < 1 ? Math.round(-Math.log10(step)) : 0;
+    return Number(Number(v).toFixed(d));
+  }
+
+  // Проверить и привести значение трекера. Возвращает запись или null.
+  function cleanMe(id, e) {
+    const tr = PF.TRACKERS[id];
+    if (!tr || !e || !Number.isFinite(e.t) || !Number.isFinite(e.v)) return null;
+    const v = roundTo(e.v, tr.step);
+    if (v < tr.lim[0] || v > tr.lim[1]) return null;
+    const out = { t: Math.floor(e.t), v };
+    if (id === 'pressure') {
+      if (!Number.isFinite(e.v2)) return null;
+      const v2 = Math.round(e.v2);
+      if (v2 < tr.lim2[0] || v2 > tr.lim2[1] || v2 >= v) return null;
+      out.v2 = v2;
+    }
+    return out;
+  }
+
+  function decodeMeAll(get) {
+    const me = emptyMe();
+    PF.TRACKER_IDS.forEach((id) => {
+      const list = get(id);
+      (Array.isArray(list) ? list : []).forEach((arr) => {
+        if (!Array.isArray(arr)) return;
+        const e = cleanMe(id, { t: arr[0], v: arr[1], v2: arr[2] });
+        if (e && !me[id].some((x) => x.t === e.t)) me[id].push(e);
+      });
+      me[id].sort((a, b) => a.t - b.t);
+    });
+    return me;
+  }
+
+  function meChanged(id) {
+    S.me[id].sort((a, b) => a.t - b.t);
+    dirty.add('me_' + id);
+    changed();
+  }
+
+  // Понятная ошибка для значения вне диапазона.
+  function meError(id, e) {
+    const tr = PF.TRACKERS[id];
+    if (!Number.isFinite(e.t)) return t('Укажите дату и время.');
+    if (e.t > u.nowSec() + 60) return t('Нельзя добавить запись в будущем.');
+    if (id === 'pressure') {
+      if (!Number.isFinite(e.v) || !Number.isFinite(e.v2)) return t('Введите верхнее и нижнее давление.');
+      if (e.v2 >= e.v) return t('Нижнее давление должно быть меньше верхнего.');
+      if (e.v < tr.lim[0] || e.v > tr.lim[1] || e.v2 < tr.lim2[0] || e.v2 > tr.lim2[1]) return t('Проверьте значения давления.');
+      return null;
+    }
+    if (!Number.isFinite(e.v)) return t('Введите значение.');
+    if (e.v < tr.lim[0] || e.v > tr.lim[1]) return t('Значение вне допустимого диапазона.');
+    return null;
+  }
+
+  // Свободное время для записи (если на эту секунду уже есть запись — сдвигаем).
+  function freeTime(id, tm, except) {
+    while (S.me[id].some((x) => x.t === tm && x.t !== except)) tm += 1;
+    return tm;
+  }
+
+  function addMe(id, e) {
+    if (!PF.TRACKERS[id]) return t('Неизвестный трекер.');
+    const err = meError(id, e);
+    if (err) return err;
+    const c = cleanMe(id, Object.assign({}, e, { t: freeTime(id, Math.floor(e.t)) }));
+    if (!c) return t('Значение вне допустимого диапазона.');
+    S.me[id].push(c);
+    meChanged(id);
+    return null;
+  }
+
+  function updateMe(id, oldT, e) {
+    const i = S.me[id] ? S.me[id].findIndex((x) => x.t === oldT) : -1;
+    if (i < 0) return t('Запись не найдена.');
+    const err = meError(id, e);
+    if (err) return err;
+    const c = cleanMe(id, Object.assign({}, e, { t: freeTime(id, Math.floor(e.t), oldT) }));
+    if (!c) return t('Значение вне допустимого диапазона.');
+    S.me[id][i] = c;
+    meChanged(id);
+    return null;
+  }
+
+  function removeMe(id, tm) {
+    if (!S.me[id]) return;
+    S.me[id] = S.me[id].filter((x) => x.t !== tm);
+    meChanged(id);
+  }
+
+  // Вода: +1 / −1 стакан к сегодняшней записи.
+  function addWater(delta) {
+    const list = S.me.water;
+    const today = u.dayKey(u.nowSec());
+    let e = null;
+    for (let i = list.length - 1; i >= 0; i--) { if (u.dayKey(list[i].t) === today) { e = list[i]; break; } }
+    if (e) {
+      e.v = Math.max(0, Math.min(PF.TRACKERS.water.lim[1], e.v + delta));
+      if (!e.v) S.me.water = list.filter((x) => x !== e);
+    } else if (delta > 0) {
+      list.push({ t: freeTime('water', u.nowSec()), v: delta });
+    } else return 0;
+    meChanged('water');
+    return S.me.water.filter((x) => u.dayKey(x.t) === today).reduce((sum, x) => sum + x.v, 0);
+  }
+
   // ---------- резервная копия ----------
 
   function exportObj() {
@@ -741,6 +866,8 @@
         char: JSON.parse(JSON.stringify(S.char)),
         tasks: S.tasks.map(encodeTask),
         acts: S.acts.map(encodeAct),
+        me: (() => { const o = {}; PF.TRACKER_IDS.forEach((id) => { o[id] = S.me[id].map(encodeMe); }); return o; })(),
+        prefs: { wunit: S.prefs.wunit, wgoal: S.prefs.wgoal },
       },
     };
   }
@@ -774,7 +901,12 @@
       if (a.a.charAt(0) === 'c') active.k = Number.isFinite(a.k) ? clampRate(a.k) : actRate(a.a);
     }
     const tasks = (Array.isArray(obj.data.tasks) ? obj.data.tasks : []).map(decodeTask).filter(Boolean);
-    return { records, active, char: sanitizeChar(obj.data.char), tasks, acts, exportedAt: obj.exportedAt };
+    const meSrc = obj.data.me && typeof obj.data.me === 'object' ? obj.data.me : {};
+    const me = decodeMeAll((id) => meSrc[id]);
+    const pr = obj.data.prefs && typeof obj.data.prefs === 'object' ? obj.data.prefs : {};
+    const wprefs = {};
+    ['wunit', 'wgoal'].forEach((k) => { if (PREF_RULES[k](pr[k])) wprefs[k] = pr[k]; });
+    return { records, active, char: sanitizeChar(obj.data.char), tasks, acts, me, wprefs, exportedAt: obj.exportedAt };
   }
 
   function markAllDocs() {
@@ -784,6 +916,7 @@
     dirty.add('char');
     dirty.add('tasks');
     dirty.add('acts');
+    PF.TRACKER_IDS.forEach((id) => dirty.add('me_' + id));
   }
 
   // Заменить все данные данными из копии.
@@ -795,6 +928,8 @@
     S.tasks = (parsed.tasks || []).slice();
     S.acts = (parsed.acts || []).slice();
     syncActs();
+    S.me = parsed.me || emptyMe();
+    if (parsed.wprefs) { Object.assign(S.prefs, parsed.wprefs); dirty.add('prefs'); }
     sortRecs();
     markAllDocs();
     changed();
@@ -809,6 +944,7 @@
     S.tasks = [];
     S.acts = [];
     syncActs();
+    S.me = emptyMe();
     changed();
     return flush();
   }
@@ -834,6 +970,10 @@
     addAct,
     updateAct,
     removeAct,
+    addMe,
+    updateMe,
+    removeMe,
+    addWater,
     balance,
     spent,
     owns,
