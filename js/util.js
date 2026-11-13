@@ -70,6 +70,17 @@ window.PF = window.PF || {};
     { ru: 'Красный', en: 'Red', hex: '#dc2626' },
     { ru: 'Фиолетовый', en: 'Purple', hex: '#7c3aed' },
   ];
+  // Стили интерфейса (Настройки → Оформление). Сами стили описаны в css/style.css и css/styles.css.
+  PF.STYLES = [
+    { id: 'glass', name: 'Жидкое стекло' },
+    { id: 'frosted', name: 'Матовое стекло' },
+    { id: 'pixel', name: 'Пиксель' },
+    { id: 'pastel', name: 'Пастель' },
+    { id: 'neon', name: 'Неон' },
+    { id: 'minimal', name: 'Минимализм' },
+    { id: 'paper', name: 'Бумага' },
+    { id: 'soft', name: 'Мягкий объём' },
+  ];
   // Фоны главного экрана (рисуются в CSS: --bgimg-N).
   PF.BACKGROUNDS = ['Обычный', 'Рассвет', 'Океан', 'Лес', 'Пиксели', 'Звёзды'];
 

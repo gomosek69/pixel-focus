@@ -11,7 +11,7 @@
 
   var VERSION = '24';
 
-  var CSS = ['css/style.css'];
+  var CSS = ['css/fonts.css', 'css/style.css', 'css/styles.css'];
   var JS = [
     'js/util.js',
     'js/i18n.js',
