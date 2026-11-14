@@ -10,32 +10,12 @@
 
 const fs = require('fs');
 const path = require('path');
-const { open, seed, tab } = require('./lib');
+const { open, seed, SCREENS } = require('./lib');
 
 const args = process.argv.slice(2);
 const outDir = path.resolve(args.find((a) => !a.startsWith('--')) || 'shots');
 const flag = (name) => args.includes('--' + name);
 const opt = (name, def) => { const a = args.find((x) => x.startsWith('--' + name + '=')); return a ? a.slice(name.length + 3) : def; };
-
-// Экраны: имя → как до него дойти. full — снимок всей страницы, иначе только видимая часть.
-const SCREENS = [
-  ['timer-active', async (p) => { await tab(p, 'timer'); }],
-  ['timer-idle', async (p) => { await p.evaluate(() => PF.store.stop()); await tab(p, 'stats'); await tab(p, 'timer'); }],
-  ['stats', async (p) => { await tab(p, 'stats'); await p.click('[data-mode=month]'); await p.waitForTimeout(200); }],
-  ['wardrobe', async (p) => { await tab(p, 'char'); }],
-  ['shop', async (p) => { await tab(p, 'char'); await p.click('[data-mode=shop]'); await p.waitForTimeout(200); await p.click('[data-cat=top]'); await p.waitForTimeout(200); }],
-  ['tasks', async (p) => { await tab(p, 'tasks'); }],
-  ['me', async (p) => { await tab(p, 'me'); }],
-  ['me-weight', async (p) => { await tab(p, 'me'); await p.click('[data-open=weight]'); await p.waitForTimeout(250); }],
-  ['settings', async (p) => { await tab(p, 'settings'); }],
-  ['sheet-record', async (p) => { await tab(p, 'timer'); await p.click('[data-action=add]'); await p.waitForTimeout(350); }, 'view'],
-  ['sheet-acts', async (p) => { await p.evaluate(() => PF.ui.closeTopSheet()); await p.waitForTimeout(300); await p.click('[data-action=acts]'); await p.waitForTimeout(350); }, 'view'],
-  ['sheet-buy', async (p) => {
-    await p.evaluate(() => PF.ui.closeTopSheet()); await p.waitForTimeout(300);
-    await tab(p, 'char'); await p.click('[data-mode=shop]'); await p.waitForTimeout(150); await p.click('[data-cat=top]'); await p.waitForTimeout(150);
-    await p.click('.item:has(.price)'); await p.waitForTimeout(350);
-  }, 'view'],
-];
 
 (async () => {
   fs.mkdirSync(outDir, { recursive: true });

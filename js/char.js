@@ -1929,10 +1929,10 @@
   const BASE = { hair: 'hair_short', top: 'top_tee', pants: 'pants_jeans', shoes: 'shoes_keds', acc: null, dance: null };
 
   const RARITY = {
-    base: { name: 'бесплатная', color: '#9aa0a8' },
-    common: { name: 'обычная', color: '#9aa0a8' },
-    rare: { name: 'редкая', color: '#3b82f6' },
-    legendary: { name: 'легендарная', color: '#f59e0b' },
+    base: { name: 'бесплатная', color: 'var(--hint, #7b808a)' },
+    common: { name: 'обычная', color: 'var(--hint, #7b808a)' },
+    rare: { name: 'редкая', color: 'var(--rar-rare, #3b82f6)' },
+    legendary: { name: 'легендарная', color: 'var(--rar-leg, #f59e0b)' },
   };
   const STYLES = { base: 'Базовый', sport: 'Спорт', classic: 'Классика', street: 'Уличный', fantasy: 'Фэнтези' };
 
