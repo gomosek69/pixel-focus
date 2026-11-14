@@ -1,12 +1,14 @@
 // Листы с персонажами для просмотра глазами: все вещи, сочетания, кадры танцев.
 //
-//   node tests/char-sheets.js <папка> <набор> [--size=96] [--g=m|f] [--part=N]
+//   node tests/char-sheets.js <папка> <набор> [--size=96] [--g=m|f] [--part=N] [--only=cap,beanie]
+//
+// --only оставляет только строки, в названии которых есть одно из слов (например, отдельные аксессуары).
 //
 // Наборы:
 //   items        — все вещи по категориям на обоих полах
 //   hats         — каждая причёска с каждым аксессуаром
 //   tops-pants   — каждый верх с каждыми штанами
-//   pants-shoes  — каждые штаны с каждой обувью
+//   pants-shoes  — каждые штаны с каждой обувью (крупно, только ноги)
 //   dances       — каждый танец по кадрам в нескольких нарядах
 //   colors       — перекраска вещей и цвета волос
 // Большие наборы режутся на несколько картинок (…-1.png, …-2.png).
@@ -29,6 +31,9 @@ const CSS = `
   .grid { display: flex; flex-wrap: wrap; gap: 2px; padding: 4px; }
   .cell { text-align: center; overflow: hidden; padding-top: ${Math.round(SIZE * 0.16)}px; }
   .cell div { height: 11px; white-space: nowrap; overflow: hidden; }
+  .cell.legs { width: 160px !important; padding-top: 0; }
+  .cell.legs .crop { width: 160px; height: 96px; overflow: hidden; }
+  .cell.legs .crop svg { margin: -160px 0 0 -48px; }
   .head { flex-basis: 100%; font: bold 13px sans-serif; padding: 6px 2px 2px; }
   .pix { display: block; image-rendering: pixelated; margin: 0 auto; }
   .pp { transform-box: view-box; }
@@ -43,7 +48,7 @@ const CSS = `
   await page.addScriptTag({ content: 'window.PF={};' + fs.readFileSync(path.join(ROOT, 'js/char.js'), 'utf8') });
 
   // В браузере: построить список ячеек для набора. Ячейка: { look, label } или { head }.
-  const count = await page.evaluate(([setName, gOpt]) => {
+  const count = await page.evaluate(([setName, gOpt, only]) => {
     const C = PF.char;
     const by = (cat) => C.ITEMS.filter((it) => it.cat === cat);
     const look = (g, eq, extra) => Object.assign({ g, skin: 1, eyes: 0, hc: 1, eq: Object.assign({}, C.BASE, eq), col: {} }, extra || {});
@@ -67,7 +72,7 @@ const CSS = `
     } else if (setName === 'pants-shoes') {
       by('pants').forEach((pn) => {
         cells.push({ head: pn.id });
-        by('shoes').forEach((sh, i) => cells.push({ look: look(gOpt || (i % 2 ? 'f' : 'm'), { pants: pn.id, shoes: sh.id }), label: sh.id.replace('shoes_', '') }));
+        by('shoes').forEach((sh, i) => cells.push({ look: look(gOpt || (i % 2 ? 'f' : 'm'), { pants: pn.id, shoes: sh.id }), label: sh.id.replace('shoes_', ''), legs: true }));
       });
     } else if (setName === 'dances') {
       const outfits = [
@@ -93,9 +98,15 @@ const CSS = `
         C.PALETTE.forEach((x, i) => { const eq = {}, col = {}; eq[it.cat] = id; col[it.cat] = i; cells.push({ look: look('m', eq, { col }), label: x.ru }); });
       });
     }
-    window.__cells = cells;
-    return cells.length;
-  }, [set, opt('g', '')]);
+    // --only: оставить только разделы с нужными словами в заголовке
+    let out = cells;
+    if (only.length) {
+      out = []; let keep = false;
+      cells.forEach((cell) => { if (cell.head) keep = only.some((w) => cell.head.indexOf(w) >= 0); if (keep) out.push(cell); });
+    }
+    window.__cells = out;
+    return out.length;
+  }, [set, opt('g', ''), opt('only', '').split(',').filter(Boolean)]);
 
   // Рисуем порциями, чтобы картинка не была слишком высокой.
   const perSheet = Number(opt('per', 220));
@@ -109,7 +120,11 @@ const CSS = `
       window.__cells.slice(a, b).forEach((cell) => {
         if (cell.head) { g.insertAdjacentHTML('beforeend', '<div class="head">' + cell.head + '</div>'); return; }
         const d = document.createElement('div'); d.className = 'cell'; d.style.width = (size + 6) + 'px';
-        d.innerHTML = C.svg(cell.look, size) + '<div>' + cell.label + '</div>';
+        if (cell.legs) {
+          // только ноги, в 4 раза крупнее: строки 40–64, колонки 12–52
+          d.className = 'cell legs';
+          d.innerHTML = '<div class="crop">' + C.svg(cell.look, 256) + '</div><div>' + cell.label + '</div>';
+        } else d.innerHTML = C.svg(cell.look, size) + '<div>' + cell.label + '</div>';
         if (cell.frames) {
           // остановить танец на нужном кадре
           const delay = -((cell.frame + 0.5) * cell.dur / cell.frames);

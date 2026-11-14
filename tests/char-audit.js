@@ -6,7 +6,11 @@
 //   • «обрезка»   — вещь пытается рисовать за краем картинки (часть рисунка теряется);
 //   • «край»      — рисунок касается самого края картинки (контуру не остаётся места);
 //   • «оторвано»  — маленькие группы точек, не соединённые с остальным персонажем;
-//   • «часть»     — точка привязана не к той части тела (рука/туловище), из-за чего в танце она «отстаёт».
+//   • «часть»     — точка привязана не к той части тела (рука/туловище), из-за чего в танце она «отстаёт»;
+//   • «дырка»     — просвет внутри силуэта, сквозь который виден фон (кроме обычных промежутков
+//                   у шеи, между рукой и телом и между ногами).
+// Потом те же проверки для сочетаний: причёска + аксессуар, верх + штаны, штаны + обувь, верх + аксессуар.
+// В сочетании замечание печатается, только если его нет у каждой из вещей по отдельности.
 'use strict';
 
 const path = require('path');
@@ -41,7 +45,7 @@ function components(filled) {
 }
 
 function audit(g, eq) {
-  const res = { clip: 0, edge: [], loose: [], part: [] };
+  const res = { clip: 0, edge: [], loose: [], part: [], holes: [] };
   Canvas.onClip = () => { res.clip++; };
   const c = C.compose(look(g, eq));
   Canvas.onClip = null;
@@ -59,6 +63,28 @@ function audit(g, eq) {
     const i = cm[0];
     res.loose.push(cm.length + ' т. у (' + (i % N) + ',' + (((i / N) | 0) - OY) + ')');
   });
+  // дырки: пустые точки, до которых нельзя дойти снаружи (4 соседа)
+  const seen = new Uint8Array(N * NH), stack = [];
+  const push = (i) => { if (!filled[i] && !seen[i]) { seen[i] = 1; stack.push(i); } };
+  for (let x = 0; x < N; x++) { push(x); push((NH - 1) * N + x); }
+  for (let y = 0; y < NH; y++) { push(y * N); push(y * N + N - 1); }
+  while (stack.length) {
+    const i = stack.pop(), x = i % N, y = (i / N) | 0;
+    if (x > 0) push(i - 1); if (x < N - 1) push(i + 1); if (y > 0) push(i - N); if (y < NH - 1) push(i + N);
+  }
+  // Считаются только настоящие просветы: точка без закрашенных соседей (иначе её закроет контур)
+  // и не в обычных промежутках — у шеи, между рукой и телом, между ногами.
+  const G0 = geo(g);
+  const natural = (x, y) => (y >= 24 && y <= 33)
+    || (y >= G0.ay0 && y <= G0.ay1 + 4 && ((x > G0.ax1 && x <= G0.tx0 + 1) || (x >= G0.tx1 - 1 && x < G0.bx0)))
+    || (y >= G0.ly0 && x >= G0.lx1 && x <= G0.rx0);
+  for (let i = 0; i < N * NH; i++) {
+    if (filled[i] || seen[i]) continue;
+    const x = i % N, y = ((i / N) | 0) - OY;
+    if (natural(x, y)) continue;
+    if (filled[i - 1] || filled[i + 1] || filled[i - N] || filled[i + N]) continue;
+    res.holes.push('(' + x + ',' + y + ')');
+  }
   // привязка к частям тела: точки рук должны быть в колонках рук, а точки туловища и ног — не в них
   const G = geo(g);
   let badArm = 0, badTorso = 0;
@@ -100,8 +126,31 @@ C.ITEMS.filter((it) => it.cat !== 'dance').forEach((it) => {
     const loose = r.loose.filter((l) => !base.loose.includes(l));
     if (loose.length) msgs.push('оторвано: ' + loose.join('; '));
     if (r.part.length) msgs.push('часть: ' + r.part.join(', '));
+    const holes = r.holes.filter((h) => !base.holes.includes(h));
+    if (holes.length) msgs.push('дырка: ' + holes.length + ' т., например ' + holes.slice(0, 4).join(' '));
     if (msgs.length) { problems++; lines.push(it.id + ' [' + g + '] ' + msgs.join(' | ')); }
   });
+});
+
+// Сочетания вещей.
+const by = (cat) => C.ITEMS.filter((it) => it.cat === cat);
+const single = {};
+const one = (g, it) => single[g + it.id] || (single[g + it.id] = audit(g, { [it.cat]: it.id }));
+let combos = 0;
+[['hair', 'acc'], ['top', 'pants'], ['pants', 'shoes'], ['top', 'acc'], ['hair', 'top']].forEach(([ca, cb]) => {
+  by(ca).forEach((a) => by(cb).forEach((b) => ['m', 'f'].forEach((g) => {
+    combos++;
+    const ra = one(g, a), rb = one(g, b), r = audit(g, { [ca]: a.id, [cb]: b.id });
+    const msgs = [];
+    if (r.clip > ra.clip + rb.clip) msgs.push('обрезка: ' + r.clip + ' т.');
+    const edge = r.edge.filter((e) => !ra.edge.includes(e) && !rb.edge.includes(e));
+    if (edge.length) msgs.push('край: ' + edge.join(', '));
+    const loose = r.loose.filter((l) => !ra.loose.includes(l) && !rb.loose.includes(l));
+    if (loose.length) msgs.push('оторвано: ' + loose.join('; '));
+    const holes = r.holes.filter((h) => !ra.holes.includes(h) && !rb.holes.includes(h));
+    if (holes.length) msgs.push('дырка: ' + holes.length + ' т., например ' + holes.slice(0, 4).join(' '));
+    if (msgs.length) { problems++; lines.push(a.id + ' + ' + b.id + ' [' + g + '] ' + msgs.join(' | ')); }
+  })));
 });
 // Почти симметричные вещи: если слева и справа отличается всего несколько точек, это обычно
 // не задумка, а ошибка на один пиксель. Печатается как подсказка, в замечания не входит.
@@ -117,4 +166,4 @@ C.ITEMS.filter((it) => it.cat !== 'dance').forEach((it) => {
 });
 console.log(lines.join('\n') || 'замечаний нет');
 if (hints.length) console.log('\nПочти симметричные (проверить глазами):\n' + hints.join('\n'));
-console.log('\nВсего замечаний: ' + problems);
+console.log('\nПроверено сочетаний: ' + combos + '. Всего замечаний: ' + problems);
