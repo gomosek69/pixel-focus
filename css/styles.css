@@ -410,3 +410,12 @@
 :root[data-style="soft"] .item.r-legendary { box-shadow: var(--g-shadow), inset 0 -3px 0 #f59e0b; }
 :root[data-style="soft"] .char-stage { background: radial-gradient(ellipse 24% 4% at 50% 93%, rgba(0, 0, 0, 0.16), transparent), var(--card); box-shadow: var(--g-inset); }
 :root[data-style="soft"] .act-add { border-color: var(--line); }
+
+/* ---------- мелкие правки после проверки всех экранов ---------- */
+
+/* Мягкий объём: «ямка» галочки задачи почти не видна — тонкое кольцо по краю */
+:root[data-style="soft"] .check { box-shadow: var(--g-inset), inset 0 0 0 2px color-mix(in srgb, var(--hint) 60%, transparent); }
+:root[data-style="soft"] .task.done .check { box-shadow: none; }
+
+/* Пиксель, тёмная тема: синие и фиолетовые значки и графики трекеров сливались с синей карточкой */
+:root[data-style="pixel"][data-scheme="dark"] :is(.me-ic, .me-spark) { filter: brightness(1.45) saturate(1.1); }

@@ -98,9 +98,15 @@
       '<div class="card pad theme-card">' +
       '  <div><div class="set-label">' + t('Тема') + '</div><div class="seg seg-main" data-seg="theme">' +
       themeBtn('auto', t('Как в Telegram')) + themeBtn('light', t('Светлая')) + themeBtn('dark', t('Тёмная')) + '</div></div>' +
-      '  <div><div class="set-label">' + t('Стиль интерфейса') + '</div><div class="style-pick">' +
-      PF.STYLES.map((st) =>
-        '<button class="chip-btn style-opt' + (pr.style === st.id ? ' on' : '') + '" data-styleopt="' + st.id + '">' + t(st.name) + '</button>').join('') +
+      '  <div><div class="set-label">' + t('Стиль интерфейса') + '</div><div class="style-grid">' +
+      PF.STYLES.map((st) => {
+        // маленький образец: фон, карточка, точка основного цвета и буквы шрифтом стиля
+        const v = st.pv, css = '--pv-bg:' + v.bg + ';--pv-card:' + v.card + ';--pv-ink:' + v.ink + ';--pv-acc:' + v.acc + ';--pv-r:' + v.r +
+          (v.font ? ";--pv-font:'" + v.font + "'" : '') + (v.edge ? ';--pv-edge:' + v.edge : '') + (v.bw ? ';--pv-bw:' + v.bw : '') +
+          (v.dot ? ';--pv-dot:' + v.dot : '') + (v.shadow ? ';--pv-shadow:' + v.shadow : '');
+        return '<button class="style-tile' + ((pr.style || 'glass') === st.id ? ' on' : '') + '" data-styleopt="' + st.id + '" style="' + css + '">' +
+          '<span class="st-pv"><span class="st-card"><i></i><b>Aa</b></span></span><span class="st-name">' + t(st.name) + '</span></button>';
+      }).join('') +
       '</div></div>' +
       '  <div><div class="set-label">' + t('Основной цвет') + '</div><div class="accents">' + accents + '</div></div>' +
       '  <div><div class="set-label">' + t('Фон приложения') + '</div><div class="bgs">' + bgs + '</div></div>' +

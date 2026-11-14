@@ -71,15 +71,17 @@ window.PF = window.PF || {};
     { ru: 'Фиолетовый', en: 'Purple', hex: '#7c3aed' },
   ];
   // Стили интерфейса (Настройки → Оформление). Сами стили описаны в css/style.css и css/styles.css.
+  // pv — цвета и форма для маленькой картинки-образца в Настройках:
+  // фон, карточка, текст, основной цвет, скругление, шрифт, рамка, тень.
   PF.STYLES = [
-    { id: 'glass', name: 'Жидкое стекло' },
-    { id: 'frosted', name: 'Матовое стекло' },
-    { id: 'pixel', name: 'Пиксель' },
-    { id: 'pastel', name: 'Пастель' },
-    { id: 'neon', name: 'Неон' },
-    { id: 'minimal', name: 'Минимализм' },
-    { id: 'paper', name: 'Бумага' },
-    { id: 'soft', name: 'Мягкий объём' },
+    { id: 'glass', name: 'Жидкое стекло', pv: { bg: 'linear-gradient(135deg,#c9c6ff,#ffd9cc 60%,#c8f3e2)', card: 'rgba(255,255,255,.55)', ink: '#14161a', acc: '#6366f1', r: '10px', edge: 'rgba(255,255,255,.9)' } },
+    { id: 'frosted', name: 'Матовое стекло', pv: { bg: 'linear-gradient(135deg,#b9b6f5,#f3c8bc 60%,#b6e6d2)', card: 'rgba(226,228,250,.92)', ink: '#14161a', acc: '#6366f1', r: '10px', edge: 'rgba(255,255,255,.5)' } },
+    { id: 'pixel', name: 'Пиксель', pv: { bg: '#ece3cf', card: '#fffaf0', ink: '#2b2540', acc: '#5b6ee1', r: '0px', font: 'Tiny5', edge: '#2b2540', bw: '2px', dot: '0', shadow: '2px 2px 0 #2b2540' } },
+    { id: 'pastel', name: 'Пастель', pv: { bg: 'linear-gradient(160deg,#fde2ee,#e8defa)', card: '#ffffff', ink: '#54465f', acc: '#ee62a8', r: '12px', font: 'Nunito', shadow: '0 3px 0 rgba(238,98,168,.25)' } },
+    { id: 'neon', name: 'Неон', pv: { bg: '#06060f', card: '#101024', ink: '#e9f3ff', acc: '#22e5ff', r: '6px', font: 'Tektur', edge: '#22e5ff', bw: '1px', shadow: '0 0 8px rgba(34,229,255,.6)' } },
+    { id: 'minimal', name: 'Минимализм', pv: { bg: '#ffffff', card: '#ffffff', ink: '#111113', acc: '#111113', r: '4px', edge: '#d9d9de', bw: '1px', shadow: 'none' } },
+    { id: 'paper', name: 'Бумага', pv: { bg: '#f1eadb', card: '#fffdf6', ink: '#2f2a26', acc: '#3b6fd4', r: '5px', font: 'Caveat', edge: '#2f2a26', bw: '1.5px', shadow: '2px 2px 0 rgba(47,42,38,.25)' } },
+    { id: 'soft', name: 'Мягкий объём', pv: { bg: '#e7ebf1', card: '#e7ebf1', ink: '#39414f', acc: '#6c7cf0', r: '12px', shadow: '3px 3px 7px #c2c9d6, -3px -3px 7px #ffffff' } },
   ];
   // Фоны главного экрана (рисуются в CSS: --bgimg-N).
   PF.BACKGROUNDS = ['Обычный', 'Рассвет', 'Океан', 'Лес', 'Пиксели', 'Звёзды'];

@@ -1151,5 +1151,25 @@ button:active:not(:disabled) { transform: scale(0.96); }
 .fmt-seg .seg-btn small { font-size: 0.6875rem; opacity: .88; font-weight: 500; }
 
 /* выбор стиля интерфейса */
-.style-pick { display: flex; flex-wrap: wrap; gap: 8px; }
-.style-opt.on { background: var(--primary); color: var(--primary-text); border-color: transparent; }
+/* Выбор стиля интерфейса: плитки с маленьким образцом (цвета образца — в PF.STYLES) */
+.style-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 8px; }
+.style-tile { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 0; background: none; border: 0; color: var(--text); min-width: 0; }
+.st-pv {
+  width: 100%; aspect-ratio: 1.2; border-radius: 12px; background: var(--pv-bg);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 0 1px var(--line); outline: 2.5px solid transparent; outline-offset: 2px;
+  transition: outline-color 0.25s, transform 0.3s var(--spring);
+}
+.style-tile.on .st-pv { outline-color: var(--primary); }
+.style-tile:active .st-pv { transform: scale(.95); }
+.st-card {
+  width: 72%; height: 52%; display: flex; align-items: center; gap: 5px; padding: 0 7px;
+  background: var(--pv-card); color: var(--pv-ink); border-radius: var(--pv-r);
+  border: var(--pv-bw, 1px) solid var(--pv-edge, transparent);
+  box-shadow: var(--pv-shadow, 0 2px 6px rgba(20, 24, 40, 0.12));
+  font-family: var(--pv-font, -apple-system, "Segoe UI", Roboto, sans-serif); font-size: 13px; line-height: 1;
+}
+.st-card i { width: 10px; height: 10px; flex: none; border-radius: var(--pv-dot, 50%); background: var(--pv-acc); }
+.st-card b { font-weight: 700; }
+.st-name { font-size: 0.6875rem; font-weight: 600; line-height: 1.15; text-align: center; color: var(--hint); }
+.style-tile.on .st-name { color: var(--text); }

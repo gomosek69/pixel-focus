@@ -62,10 +62,18 @@
     // Подкрасить шапку и фон Telegram под выбранную тему.
     if (tg && tg.isVersionAtLeast) {
       try {
-        const bg = getComputedStyle(document.documentElement).backgroundColor;
+        // цвет фона берём с пробного элемента без плавного перехода — иначе сразу после смены темы
+        // получился бы ещё старый цвет
+        const probe = document.createElement('i');
+        probe.style.cssText = 'position:absolute;visibility:hidden;transition:none;background:var(--bg)';
+        document.body.appendChild(probe);
+        const bg = getComputedStyle(probe).backgroundColor;
+        probe.remove();
         const m = bg.match(/\d+/g);
         const hex = m ? '#' + m.slice(0, 3).map((x) => Number(x).toString(16).padStart(2, '0')).join('') : null;
-        if (pr.theme === 'auto') {
+        // у стилей со своей палитрой (пиксель, неон, бумага…) шапка Telegram красится в их фон
+        const ownPalette = root.dataset.style !== 'glass' && root.dataset.style !== 'frosted';
+        if (pr.theme === 'auto' && !ownPalette) {
           if (tg.isVersionAtLeast('6.1')) { tg.setHeaderColor('secondary_bg_color'); tg.setBackgroundColor('secondary_bg_color'); }
         } else if (hex) {
           if (tg.isVersionAtLeast('6.9')) tg.setHeaderColor(hex);
