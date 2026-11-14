@@ -160,8 +160,10 @@ input, textarea { font: inherit; color: inherit; }
 .current.idle .cur-body { flex: 1; }
 .cur-row { display: flex; align-items: flex-start; gap: 8px; position: relative; }
 .cur-body { flex: 1; min-width: 0; }
-.cur-char { flex: none; width: 128px; height: 128px; border-radius: calc(14px * var(--rs)); position: relative; margin: -14px -10px -14px 0; }
-.current:not(.idle) .cur-char { margin: -14px -12px -10px 0; }
+/* --room — сколько места над картинкой нужно высокой причёске, шляпе или прыжку в танце
+   (ставит PF.char.room). Каждая рамка добавляет только то, чего ей не хватает. */
+.cur-char { flex: none; width: 128px; height: 128px; border-radius: calc(14px * var(--rs)); position: relative; margin: max(-14px, calc(var(--room, 0px) - 14px)) -10px -14px 0; }
+.current:not(.idle) .cur-char { margin: max(-14px, calc(var(--room, 0px) - 14px)) -12px -10px 0; }
 .cur-idle { font-weight: 600; margin-bottom: 2px; }
 .cur-top { display: flex; align-items: center; gap: 8px; }
 .dot { width: 10px; height: 10px; border-radius: var(--r-round); background: var(--c); animation: pulse 1.6s ease-in-out infinite; }
@@ -365,7 +367,7 @@ textarea.code {
 }
 
 .char-stage {
-  display: flex; justify-content: center; padding: 26px 0 8px; margin-bottom: 14px;
+  display: flex; justify-content: center; padding: max(26px, calc(var(--room, 0px) + 6px)) 0 8px; margin-bottom: 14px;
   background:
     radial-gradient(ellipse 24% 4% at 50% 93%, rgba(0, 0, 0, 0.16), transparent),
     linear-gradient(180deg, color-mix(in srgb, var(--primary) 14%, var(--card)), var(--card));
@@ -407,7 +409,7 @@ textarea.code {
 .item.on { border-color: var(--primary); }
 .item.r-rare { box-shadow: inset 0 -3px 0 #3b82f6; }
 .item.r-legendary { box-shadow: inset 0 -3px 0 #f59e0b, 0 0 14px rgba(245, 158, 11, 0.25); }
-.item-pic { display: block; margin-bottom: 2px; }
+.item-pic { display: block; margin-bottom: 2px; padding-top: max(0px, calc(var(--room, 0px) - 8px)); }
 .item-name { font-weight: 600; font-size: 0.875rem; line-height: 1.2; }
 .item-sub { font-size: 0.75rem; }
 .item-foot { margin-top: 6px; font-size: 0.8125rem; color: var(--hint); }
@@ -420,7 +422,7 @@ textarea.code {
 .items-hint { grid-column: 1 / -1; color: var(--hint); font-size: 0.8125rem; text-align: center; padding: 8px; }
 
 .try-pic {
-  display: flex; justify-content: center; margin: -4px -16px 12px; padding: 12px 0;
+  display: flex; justify-content: center; margin: -4px -16px 12px; padding: max(12px, calc(var(--room, 0px) + 4px)) 0 12px;
   background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 12%, var(--card)), var(--card));
 }
 .try-pic.r-legendary { background: radial-gradient(circle at 50% 55%, rgba(245, 158, 11, 0.28), var(--card) 65%); }
@@ -900,7 +902,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
 /* ---------- приветствие ---------- */
 .greet-line { color: var(--hint); font-size: 0.9375rem; font-weight: 600; margin: 10px 2px -6px; }
 .row-val { margin-left: auto; color: var(--hint); font-weight: 500; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.name-hero { display: flex; justify-content: center; margin: -6px 0 2px; }
+.name-hero { display: flex; justify-content: center; margin: max(-6px, calc(var(--room, 0px) - 16px)) 0 2px; }
 
 /* Заставка при запуске */
 .splash {
@@ -1008,9 +1010,9 @@ button:active:not(:disabled) { transform: scale(0.96); }
 
 /* ---------- вкладка «Я» ---------- */
 
-.me-hero { display: flex; align-items: center; gap: 12px; padding: 10px 16px 10px 6px; margin-bottom: 14px; }
-.me-hero-char { width: 96px; height: 96px; flex: none; display: flex; align-items: center; justify-content: center; }
-.me-hero-char svg { width: 96px; height: 96px; }
+.me-hero { display: flex; align-items: center; gap: 6px; padding: 10px 16px; margin-bottom: 14px; }
+/* персонаж — ровно в 2 раза крупнее рисунка (128px): при дробном увеличении пиксели выходят неровными */
+.me-hero-char { width: 112px; height: 128px; flex: none; display: flex; align-items: center; justify-content: center; margin: max(-8px, calc(var(--room, 0px) - 8px)) 0 -8px; }
 .me-hero-name { font-size: 1.25rem; font-weight: 700; margin-bottom: 4px; }
 .me-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .me-card { padding: 12px 12px 10px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; min-width: 0; }

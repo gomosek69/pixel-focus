@@ -1757,15 +1757,15 @@
   const R = (a) => 'rotate(' + a + 'deg)';
   const DANCES = {
     six7: { dur: 0.6, frames: [
-      { larm: T(0, -7) + R(42), rarm: T(0, 3) + R(-42), all: T(0, 0), head: R(-4) },
-      { larm: T(0, -2) + R(42), rarm: T(0, -2) + R(-42), all: T(0, 1) },
-      { larm: T(0, 3) + R(42), rarm: T(0, -7) + R(-42), all: T(0, 0), head: R(4) },
-      { larm: T(0, -2) + R(42), rarm: T(0, -2) + R(-42), all: T(0, 1) },
+      { larm: R(70), rarm: R(-24), all: T(0, 0), head: R(-4) },
+      { larm: R(46), rarm: R(-46), all: T(0, 1) },
+      { larm: R(24), rarm: R(-70), all: T(0, 0), head: R(4) },
+      { larm: R(46), rarm: R(-46), all: T(0, 1) },
     ] },
     floss: { dur: 0.9, frames: [
-      { larm: T(8, 0) + R(18), rarm: T(8, 0) + R(18), torso: T(-2, 0), head: T(-2, 0), legl: T(-2, 0), legr: T(-2, 0) },
+      { larm: R(-52), rarm: T(-2, 0) + R(-40), torso: T(-2, 0), head: T(-2, 0), legl: T(-2, 0), legr: T(-2, 0) },
       { larm: T(0, 0), rarm: T(0, 0) },
-      { larm: T(-8, 0) + R(-18), rarm: T(-8, 0) + R(-18), torso: T(2, 0), head: T(2, 0), legl: T(2, 0), legr: T(2, 0) },
+      { larm: T(2, 0) + R(40), rarm: R(52), torso: T(2, 0), head: T(2, 0), legl: T(2, 0), legr: T(2, 0) },
       { larm: T(0, 0), rarm: T(0, 0) },
     ] },
     dab: { dur: 1.6, frames: [
@@ -1785,9 +1785,9 @@
       { legr: T(0, -5), all: T(0, -1), larm: R(25), rarm: R(25) },
     ] },
     shuffle: { dur: 0.8, frames: [
-      { legl: T(-3, 0) + R(18), legr: T(3, 0) + R(-18), larm: T(0, -3) + R(35), rarm: T(0, -3) + R(-35), all: T(1, 0) },
+      { legl: T(-3, 0) + R(18), legr: T(3, 0) + R(-18), larm: T(0, -1) + R(50), rarm: T(0, -1) + R(-50), all: T(1, 0) },
       { all: T(0, 1) },
-      { legl: T(-3, 0) + R(18), legr: T(3, 0) + R(-18), larm: T(0, -3) + R(35), rarm: T(0, -3) + R(-35), all: T(-1, 0) },
+      { legl: T(-3, 0) + R(18), legr: T(3, 0) + R(-18), larm: T(0, -1) + R(50), rarm: T(0, -1) + R(-50), all: T(-1, 0) },
       { all: T(0, 1) },
     ] },
     carlton: { dur: 1.0, frames: [
@@ -1799,9 +1799,9 @@
       { larm: R(75), rarm: R(-75) },
       { larm: R(155), rarm: R(-75) },
       { larm: R(155), rarm: R(-155) },
-      { larm: T(3, -5) + R(25), rarm: R(-155) },
-      { larm: T(3, -5) + R(25), rarm: T(-3, -5) + R(-25) },
-      { larm: T(3, -5) + R(25), rarm: T(-3, -5) + R(-25), torso: T(3, 0), legl: T(3, 0), legr: T(3, 0) },
+      { larm: R(-32), rarm: R(-155) },
+      { larm: R(-32), rarm: R(32) },
+      { larm: T(2, 0) + R(-32), rarm: T(2, 0) + R(32), torso: T(2, 0), legl: T(2, 0), legr: T(2, 0) },
       { all: T(0, -4) },
     ] },
     bounce: { dur: 0.6, frames: [
@@ -1809,8 +1809,8 @@
       { all: T(0, 0), head: R(-3) },
     ] },
     gangnam: { dur: 0.7, frames: [
-      { legl: T(0, -4), larm: T(6, -3) + R(-35), rarm: T(-6, -3) + R(35), all: T(0, -2) },
-      { legr: T(0, -4), larm: T(6, -3) + R(-35), rarm: T(-6, -3) + R(35), all: T(0, 0) },
+      { legl: T(0, -4), larm: T(2, -1) + R(-62), rarm: T(-2, -1) + R(62), all: T(0, -2) },
+      { legr: T(0, -4), larm: T(2, -1) + R(-62), rarm: T(-2, -1) + R(62), all: T(0, 0) },
     ] },
     moonwalk: { dur: 1.4, frames: [
       { all: T(6, 0), legl: T(0, -3) },
@@ -1841,18 +1841,18 @@
       { all: T(0, 0) },
     ] },
     lforehead: { dur: 1.2, frames: [
-      { larm: T(3, 0) + R(168), legl: T(0, -3) + R(22), all: T(0, -1) },
-      { larm: T(3, 0) + R(168), legr: T(0, -3) + R(-22), all: T(0, 0) },
+      { larm: T(2, 0) + R(170), legl: T(0, -3) + R(22), all: T(0, -1) },
+      { larm: T(2, 0) + R(170), legr: T(0, -3) + R(-22), all: T(0, 0) },
     ] },
     clap: { dur: 0.8, frames: [
-      { larm: R(150), rarm: R(-150), all: T(0, 0) },
-      { larm: T(4, 0) + R(172), rarm: T(-4, 0) + R(-172), all: T(0, -2) },
+      { larm: R(-30), rarm: R(30), all: T(0, 0) },
+      { larm: T(1, 0) + R(-72), rarm: T(-1, 0) + R(72), all: T(0, -2) },
     ] },
     wave: { dur: 1.0, frames: [
-      { larm: T(0, -4) + R(90) },
-      { larm: T(0, -2) + R(90), head: T(0, -3) },
-      { larm: T(0, 0) + R(90), rarm: T(0, -4) + R(-90), torso: T(0, -1) },
-      { rarm: T(0, -2) + R(-90) },
+      { larm: R(118) },
+      { larm: R(100), head: T(0, -2) },
+      { larm: R(85), rarm: R(-118), torso: T(0, -1) },
+      { rarm: R(-100) },
     ] },
     charleston: { dur: 0.8, frames: [
       { legl: T(0, -2) + R(32), rarm: R(-45), larm: R(10), all: T(0, -1) },
@@ -2146,9 +2146,12 @@
   // скрытые под другими частями (они проявляются, когда в танце часть сдвигается).
   // Если видимый пиксель части лежит поверх части, которая рисуется позже (например,
   // прядь волос поверх руки), он попадает в «передний» слой этой части.
+  // Исключение — бёдра под ногами: скрытые пиксели туловища уходят в «нижний» слой (рисуется
+  // раньше ног), чтобы поднятая в танце нога уходила под одежду, а не ложилась поверх неё.
   function layered(c, img) {
     const normal = PARTS.map(() => new Array(N * NH).fill(null));
     const front = PARTS.map(() => new Array(N * NH).fill(null));
+    const under = PARTS.map(() => new Array(N * NH).fill(null));
     const color = (o, i) => (o.raw[i] ? o.raw[i] : o.m[i] ? o.m[i].t[o.t[i]] : null);
     for (let i = 0; i < N * NH; i++) {
       const top = img.c[i];
@@ -2157,12 +2160,13 @@
       let isFront = false;
       for (let p = 0; p < PARTS.length; p++) {
         if (p === q || !c.own[p].m[i]) continue;
+        if (p === P.torso && (q === P.legl || q === P.legr)) { under[p][i] = color(c.own[p], i); continue; }
         if (ORD[p] > ORD[q]) isFront = true;
         normal[p][i] = color(c.own[p], i); // скрытый пиксель другой части
       }
       (isFront ? front : normal)[q][i] = top;
     }
-    return { normal, front };
+    return { normal, front, under };
   }
   function rectsOf(col) {
     let out = '';
@@ -2200,13 +2204,45 @@
     const lay = layered(c, img);
     const fx = c.fx.map((l) => ({ cls: l.cls, glow: l.glow, back: l.back, img: paint(l.c, false) }));
     const parts = PARTS.map((name, i) => ({
-      name, main: rectsOf(lay.normal[i]), front: rectsOf(lay.front[i]),
+      name, main: rectsOf(lay.normal[i]), front: rectsOf(lay.front[i]), under: rectsOf(lay.under[i]),
       fx: fx.map((l) => ({ cls: l.cls, glow: l.glow, back: l.back, html: rects(l.img, i) })),
     }));
-    r = { parts, piv: pivots(geo(look.g)), glow: fx.some((l) => l.glow) };
+    // верхняя строка рисунка (с эффектами): у высоких причёсок и шляп она выше нуля
+    let top = N;
+    [img].concat(fx.map((l) => l.img)).forEach((im) => {
+      for (let i = 0; i < N * NH; i++) if (im.c[i]) { top = Math.min(top, YI(i)); break; }
+    });
+    r = { parts, piv: pivots(geo(look.g)), glow: fx.some((l) => l.glow), top };
     if (cache.size > 300) cache.clear();
     cache.set(key, r);
     return r;
+  }
+
+  // Сколько строк над картинкой 64×64 занимает персонаж (высокая причёска, шляпа, прыжок в танце).
+  // Нужно там, где персонаж стоит в рамке с обрезкой: рамка оставляет сверху столько места.
+  function headroom(look) {
+    let rows = Math.max(0, -build(look).top);
+    const d = look.eq && look.eq.dance && byId[look.eq.dance] ? DANCES[byId[look.eq.dance].dance] : null;
+    if (d) {
+      let jump = 0;
+      d.frames.forEach((f) => {
+        let up = 0;
+        ['all', 'head'].forEach((part) => {
+          const m = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/.exec(f[part] || '');
+          if (m) up += Math.max(0, -Number(m[2]));
+        });
+        jump = Math.max(jump, up);
+      });
+      if (rows || jump > 3) rows += jump + 1;
+    }
+    return rows;
+  }
+
+  // Атрибут style с местом над картинкой (в пикселях экрана) для рамки размера size:
+  // CSS рамки сам решает, сколько из этого у неё уже есть (переменная --room).
+  function room(look, size) {
+    const px = Math.round(headroom(look) * size / N);
+    return px ? ' style="--room:' + px + 'px"' : '';
   }
 
   let svgId = 0;
@@ -2219,6 +2255,11 @@
     if (dance) ensureDanceCss();
     let body = '';
     const open = (name) => { const [ox, oy] = r.piv[name]; return '<g class="pp pp-' + name + '" style="transform-origin:' + ox + 'px ' + oy + 'px">'; };
+    // нижние слои (бёдра под ногами) — раньше всех частей
+    ORDER.forEach((name) => {
+      const part = r.parts[PARTS.indexOf(name)];
+      if (part.under) body += open(name) + part.under + '</g>';
+    });
     ORDER.forEach((name) => {
       const part = r.parts[PARTS.indexOf(name)];
       const [ox, oy] = r.piv[name];
@@ -2251,7 +2292,7 @@
     ITEMS, byId, CATS, BASE, RARITY, STYLES,
     itemName, colorName, colorPrice,
     svg,
-    compose,
+    compose, headroom, room,
     DANCES,
     recolor,
     // служебное — для автопроверок (tests/char-audit.js): холст, размеры, части тела

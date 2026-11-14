@@ -90,8 +90,10 @@
 
   // Маленький персонаж на главном экране (нажатие открывает вкладку «Персонаж»).
   function charHtml() {
-    return '<button class="cur-char" data-action="char" aria-label="' + t('Персонаж') + '">' +
-      PF.char.svg(store.look(), 128) + '</button>';
+    // Высокой причёске или шляпе (и прыжкам в танце) нужно место над картинкой, иначе рамка карточки её обрежет.
+    const look = store.look();
+    return '<button class="cur-char" data-action="char" aria-label="' + t('Персонаж') + '"' + PF.char.room(look, 128) + '>' +
+      PF.char.svg(look, 128) + '</button>';
   }
 
   function renderActs() {

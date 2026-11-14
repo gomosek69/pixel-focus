@@ -9,7 +9,7 @@
 //   hats         — каждая причёска с каждым аксессуаром
 //   tops-pants   — каждый верх с каждыми штанами
 //   pants-shoes  — каждые штаны с каждой обувью (крупно, только ноги)
-//   dances       — каждый танец по кадрам в нескольких нарядах
+//   dances       — каждый танец по кадрам в нескольких нарядах (--outfits=0,1,4 — какие наряды)
 //   colors       — перекраска вещей и цвета волос
 // Большие наборы режутся на несколько картинок (…-1.png, …-2.png).
 'use strict';
@@ -48,7 +48,7 @@ const CSS = `
   await page.addScriptTag({ content: 'window.PF={};' + fs.readFileSync(path.join(ROOT, 'js/char.js'), 'utf8') });
 
   // В браузере: построить список ячеек для набора. Ячейка: { look, label } или { head }.
-  const count = await page.evaluate(([setName, gOpt, only]) => {
+  const count = await page.evaluate(([setName, gOpt, only, outfitsOpt]) => {
     const C = PF.char;
     const by = (cat) => C.ITEMS.filter((it) => it.cat === cat);
     const look = (g, eq, extra) => Object.assign({ g, skin: 1, eyes: 0, hc: 1, eq: Object.assign({}, C.BASE, eq), col: {} }, extra || {});
@@ -83,11 +83,12 @@ const CSS = `
         ['хвостики, жакет, баллоны', { hair: 'hair_twintails', top: 'top_sculpt', pants: 'pants_balloon', shoes: 'shoes_chunky', acc: 'acc_puffscarf' }],
         ['эльф, тренч, шляпа', { hair: 'hair_elf', top: 'top_trench', pants: 'pants_wide', shoes: 'shoes_cowboy', acc: 'acc_fedora' }],
       ];
+      const pick = outfitsOpt.length ? outfitsOpt.map(Number) : outfits.map((x, i) => i);
       Object.keys(C.DANCES).forEach((d) => {
         const n = C.DANCES[d].frames.length;
-        outfits.forEach(([name, eq], oi) => {
-          cells.push({ head: d + ' — ' + name });
-          for (let f = 0; f < n; f++) cells.push({ look: look(oi % 2 ? 'f' : 'm', Object.assign({ dance: 'dance_' + d }, eq)), label: 'кадр ' + (f + 1), frame: f, frames: n, dur: C.DANCES[d].dur });
+        cells.push({ head: d + ' — ' + pick.map((oi) => (oi + 1) + ': ' + outfits[oi][0]).join('; ') });
+        pick.forEach((oi) => {
+          for (let f = 0; f < n; f++) cells.push({ look: look(oi % 2 ? 'f' : 'm', Object.assign({ dance: 'dance_' + d }, outfits[oi][1])), label: 'наряд ' + (oi + 1) + ', кадр ' + (f + 1), frame: f, frames: n, dur: C.DANCES[d].dur });
         });
       });
     } else if (setName === 'colors') {
@@ -106,7 +107,7 @@ const CSS = `
     }
     window.__cells = out;
     return out.length;
-  }, [set, opt('g', ''), opt('only', '').split(',').filter(Boolean)]);
+  }, [set, opt('g', ''), opt('only', '').split(',').filter(Boolean), opt('outfits', '').split(',').filter(Boolean)]);
 
   // Рисуем порциями, чтобы картинка не была слишком высокой.
   const perSheet = Number(opt('per', 220));

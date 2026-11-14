@@ -176,7 +176,7 @@
     const name = PF.greet ? PF.greet.name() : '';
     root.innerHTML =
       '<header class="top"><h1>' + t('Я') + '</h1></header>' +
-      '<div class="card me-hero"><div class="me-hero-char">' + PF.char.svg(store.look(), 128) + '</div>' +
+      '<div class="card me-hero"><div class="me-hero-char"' + PF.char.room(store.look(), 128) + '>' + PF.char.svg(store.look(), 128) + '</div>' +
       '<div><div class="me-hero-name">' + esc(name || t('Мой профиль')) + '</div>' +
       '<div class="hint">' + t('Записывайте показатели регулярно — графики покажут, как они меняются.') + '</div></div></div>' +
       '<div class="me-grid">' + IDS.map(cardHtml).join('') + '</div>';
