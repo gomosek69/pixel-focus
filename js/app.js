@@ -42,14 +42,13 @@
     const root = document.documentElement;
     const pr = PF.store.S.prefs;
     const tg = PF.tg;
-    if (pr.theme === 'auto') {
-      delete root.dataset.theme;
-      if (tg) root.dataset.scheme = tg.colorScheme || 'light';
-      else delete root.dataset.scheme;
-    } else {
-      root.dataset.theme = pr.theme;
-      root.dataset.scheme = pr.theme;
-    }
+    // data-theme — тема выбрана вручную; data-scheme — итог: светлая или тёмная (ставится всегда,
+    // чтобы стили оформления могли описывать тёмный вариант одним правилом).
+    if (pr.theme === 'auto') delete root.dataset.theme;
+    else root.dataset.theme = pr.theme;
+    root.dataset.scheme = pr.theme !== 'auto' ? pr.theme
+      : tg ? (tg.colorScheme || 'light')
+        : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     const acc = pr.accent === 'auto' ? null : PF.ACCENTS[pr.accent];
     if (acc) {
       root.style.setProperty('--primary', acc.hex);
@@ -59,14 +58,22 @@
       root.style.removeProperty('--primary-text');
     }
     document.body.dataset.pfBg = String(pr.bg || 0);
-    root.dataset.glass = pr.glass || 'liquid';
+    root.dataset.style = pr.style || 'glass';
     // Подкрасить шапку и фон Telegram под выбранную тему.
     if (tg && tg.isVersionAtLeast) {
       try {
-        const bg = getComputedStyle(document.documentElement).backgroundColor;
+        // цвет фона берём с пробного элемента без плавного перехода — иначе сразу после смены темы
+        // получился бы ещё старый цвет
+        const probe = document.createElement('i');
+        probe.style.cssText = 'position:absolute;visibility:hidden;transition:none;background:var(--bg)';
+        document.body.appendChild(probe);
+        const bg = getComputedStyle(probe).backgroundColor;
+        probe.remove();
         const m = bg.match(/\d+/g);
         const hex = m ? '#' + m.slice(0, 3).map((x) => Number(x).toString(16).padStart(2, '0')).join('') : null;
-        if (pr.theme === 'auto') {
+        // у стилей со своей палитрой (пиксель, неон, бумага…) шапка Telegram красится в их фон
+        const ownPalette = root.dataset.style !== 'glass' && root.dataset.style !== 'frosted';
+        if (pr.theme === 'auto' && !ownPalette) {
           if (tg.isVersionAtLeast('6.1')) { tg.setHeaderColor('secondary_bg_color'); tg.setBackgroundColor('secondary_bg_color'); }
         } else if (hex) {
           if (tg.isVersionAtLeast('6.9')) tg.setHeaderColor(hex);
@@ -222,6 +229,12 @@
       document.body.prepend(amb);
     }
     applyTheme();
+    // системная тема сменилась (в обычном браузере) — пересчитать светлую/тёмную
+    if (window.matchMedia) {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      const onScheme = () => applyTheme();
+      if (mq.addEventListener) mq.addEventListener('change', onScheme); else if (mq.addListener) mq.addListener(onScheme);
+    }
     renderTabbar();
     renderScreen('fwd');
 

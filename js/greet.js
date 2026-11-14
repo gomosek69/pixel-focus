@@ -89,7 +89,7 @@
     PF.ui.openSheet({
       dismissible: !firstTime,
       html:
-        '<div class="name-hero">' + PF.char.svg(PF.store.look(), 128) + '</div>' +
+        '<div class="name-hero"' + PF.char.room(PF.store.look(), 128) + '>' + PF.char.svg(PF.store.look(), 128) + '</div>' +
         '<h3 class="center">' + t(firstTime ? 'Давай знакомиться!' : 'Как к вам обращаться?') + '</h3>' +
         '<p class="sheet-text center">' + t('Как к тебе обращаться? Это имя будет в приветствиях.') + '</p>' +
         '<label class="field"><span>' + t('Имя') + '</span><input id="nmIn" maxlength="30" autocomplete="given-name" value="' + esc(current) + '"></label>' +
