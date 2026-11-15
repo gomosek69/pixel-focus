@@ -171,6 +171,8 @@
       this.part = new Int8Array(N * NH);
       this.cur = P.torso;
       this.fx = [];
+      // clip(x, y) === true — сюда рисовать нельзя (волосы под головным убором).
+      this.clip = null;
       // Собственные пиксели каждой части тела — в том числе закрытые другими частями.
       // Когда в танце голова или рука сдвигается, под ней видно то, что там нарисовано
       // (воротник, плечо, волосы за спиной), а не дыра.
@@ -178,14 +180,16 @@
     }
     set(x, y, m, tone) {
       x = Math.round(x); y = Math.round(y);
-      if (x < 0 || y < -OY || x >= N || y >= N) return;
+      if (x < 0 || y < -OY || x >= N || y >= N) { if (Canvas.onClip) Canvas.onClip(x, y); return; }
+      if (this.clip && this.clip(x, y)) return;
       const i = IX(x, y);
       this.m[i] = m; this.t[i] = tone; this.raw[i] = null; this.part[i] = this.cur;
       const o = this.own[this.cur]; o.m[i] = m; o.t[i] = tone; o.raw[i] = null;
     }
     px(x, y, hex) {
       x = Math.round(x); y = Math.round(y);
-      if (x < 0 || y < -OY || x >= N || y >= N) return;
+      if (x < 0 || y < -OY || x >= N || y >= N) { if (Canvas.onClip) Canvas.onClip(x, y); return; }
+      if (this.clip && this.clip(x, y)) return;
       const i = IX(x, y);
       this.raw[i] = hex; if (!this.m[i]) this.m[i] = mat(hex); this.part[i] = this.cur;
       const o = this.own[this.cur]; o.raw[i] = hex; if (!o.m[i]) o.m[i] = mat(hex);
@@ -211,7 +215,7 @@
     // back — слой позади фигуры (крылья).
     layer(cls, glow, back) {
       const l = new Canvas();
-      l.cur = this.cur;
+      l.cur = this.cur; l.clip = this.clip;
       this.fx.push({ cls, glow: !!glow, back: !!back, c: l });
       return l;
     }
@@ -233,7 +237,7 @@
         if (opts.minTone !== undefined) tone = Math.max(tone, opts.minTone);
         if (opts.maxTone !== undefined) tone = Math.min(tone, opts.maxTone);
         c.set(x, y, m, tone);
-        if (x >= 0 && x < N && y >= -OY && y < N) mask.add(IX(x, y));
+        if (x >= 0 && x < N && y >= -OY && y < N && !(c.clip && c.clip(x, y))) mask.add(IX(x, y));
       }
     }
     if (opts.edge) {
@@ -310,8 +314,12 @@
     opts = opts || {};
     const g = opts.grow || 0, y0 = G.ty0 - (opts.up || 0), y1 = opts.bottom || G.ty1;
     if (G.f && !opts.straight) {
-      return poly(c, [[G.tx0 - g, y0 + 2], [G.tx0 + 2 - g, y0], [G.tx1 - 2 + g, y0], [G.tx1 + g, y0 + 2], [G.tx1 - 1 + g, 40],
-        [G.tx1 + g, y1], [G.tx0 - g, y1], [G.tx0 + 1 - g, 40]], m, Object.assign({ edge: true }, opts));
+      // границы многоугольника — по краям пикселей: правая и нижняя на 1 больше номера последнего пикселя,
+      // иначе фигура получается на пиксель уже справа и короче снизу, чем у прямоугольного туловища
+      const L = G.tx0 - g, R = G.tx1 + 1 + g, B = y1 + 1;
+      // срез углов задан с дробным запасом, чтобы точки ровно на границе слева и справа считались одинаково
+      return poly(c, [[L, y0 + 2.2], [L + 2.2, y0], [R - 2.2, y0], [R, y0 + 2.2], [R - 1, 40.5],
+        [R, B], [L, B], [L + 1, 40.5]], m, Object.assign({ edge: true }, opts));
     }
     return rr(c, G.tx0 - g, y0, G.tx1 + g, y1, 3, m, Object.assign({ edge: true }, opts));
   }
@@ -322,14 +330,14 @@
     // плечи (часть туловища) под верхом рук: когда рука поднимается, плечо остаётся на месте
     c.cur = P.torso; rr(c, G.ax0, G.ay0, G.ax1 + 1, G.ay0 + 4, 2, skin, S); rr(c, G.bx0 - 1, G.ay0, G.bx1, G.ay0 + 4, 2, skin, S);
     c.cur = P.legl; rr(c, G.lx0, G.ly0, G.lx1, G.ly1, 2, skin, S); ell(c, 26.5, 59, 4, 2.2, skin, S);
-    c.cur = P.legr; rr(c, G.rx0, G.ly0, G.rx1, G.ly1, 2, skin, S); ell(c, 36.5, 59, 4, 2.2, skin, S);
+    c.cur = P.legr; rr(c, G.rx0, G.ly0, G.rx1, G.ly1, 2, skin, S); ell(c, 37.5, 59, 4, 2.2, skin, S);
     c.cur = P.larm; rr(c, G.ax0, G.ay0, G.ax1, G.ay1, 2, skin, S); ell(c, G.ax0 + 1.8, G.ay1 + 1.5, 2.6, 2.4, skin, S);
     c.cur = P.rarm; rr(c, G.bx0, G.ay0, G.bx1, G.ay1, 2, skin, S); ell(c, G.bx0 + 2.2, G.ay1 + 1.5, 2.6, 2.4, skin, S);
     c.cur = P.torso; torsoShape(c, G, skin, { soft: true });
     // шея относится к туловищу и лежит в тени под подбородком: так подбородок
     // не сливается с шеей, когда голова наклоняется в танце
     c.cur = P.torso;
-    rr(c, 29, 27, 35, 33, 1, skin, { minTone: 3, maxTone: 3 });
+    rr(c, 29, 27, 34, 33, 1, skin, { minTone: 3, maxTone: 3 });
     c.cur = P.head;
     ell(c, H.cx - H.rx + 0.5, H.cy + 2, 2.4, 3.2, skin, S);
     ell(c, H.cx + H.rx - 0.5, H.cy + 2, 2.4, 3.2, skin, S);
@@ -384,10 +392,10 @@
     rr(c, G.ax0 - 1, G.ay0, G.ax1 + 1, G.ay0 + 4, 2, m, { edge: true });
     rr(c, G.bx0 - 1, G.ay0, G.bx1 + 1, G.ay0 + 4, 2, m, { edge: true });
     c.cur = P.larm;
-    if (w) poly(c, [[G.ax0 - 1, G.ay0], [G.ax1 + 1, G.ay0], [G.ax1 + 1, y1 + 1], [G.ax0 - 1 - w, y1 + 1]], m, { edge: true });
+    if (w) poly(c, [[G.ax0 - 1, G.ay0], [G.ax1 + 2, G.ay0], [G.ax1 + 2, y1 + 1], [G.ax0 - 1 - w, y1 + 1]], m, { edge: true });
     else rr(c, G.ax0 - 1, G.ay0, G.ax1 + 1, y1, 2, m, { edge: true });
     c.cur = P.rarm;
-    if (w) poly(c, [[G.bx0 - 1, G.ay0], [G.bx1 + 1, G.ay0], [G.bx1 + 1 + w, y1 + 1], [G.bx0 - 1, y1 + 1]], m, { edge: true });
+    if (w) poly(c, [[G.bx0 - 1, G.ay0], [G.bx1 + 2, G.ay0], [G.bx1 + 2 + w, y1 + 1], [G.bx0 - 1, y1 + 1]], m, { edge: true });
     else rr(c, G.bx0 - 1, G.ay0, G.bx1 + 1, y1, 2, m, { edge: true });
     if (opts.cuff) {
       c.cur = P.larm; line(c, G.ax0 - 1 - w, y1, G.ax1 + 1, y1, opts.cuff, 1);
@@ -406,17 +414,17 @@
     const w = opts.widen || 0, fl = opts.flare || 0;
     c.cur = P.torso; rr(c, G.tx0 + 1, 44, G.tx1 - 1, 48, 1, m, { edge: true });
     c.cur = P.legl;
-    if (fl) poly(c, [[G.lx0 - 1 - w, 46], [G.lx1 + 1, 46], [G.lx1 + 1, bottom + 1], [G.lx0 - 1 - w - fl, bottom + 1]], m, { edge: true });
+    if (fl) poly(c, [[G.lx0 - 1 - w, 46], [G.lx1 + 2, 46], [G.lx1 + 2, bottom + 1], [G.lx0 - 1 - w - fl, bottom + 1]], m, { edge: true });
     else rr(c, G.lx0 - 1 - w, 46, G.lx1 + 1, bottom, 1, m, { edge: true });
     c.cur = P.legr;
-    if (fl) poly(c, [[G.rx0 - 1, 46], [G.rx1 + 1 + w, 46], [G.rx1 + 1 + w + fl, bottom + 1], [G.rx0 - 1, bottom + 1]], m, { edge: true });
+    if (fl) poly(c, [[G.rx0 - 1, 46], [G.rx1 + 2 + w, 46], [G.rx1 + 2 + w + fl, bottom + 1], [G.rx0 - 1, bottom + 1]], m, { edge: true });
     else rr(c, G.rx0 - 1, 46, G.rx1 + 1 + w, bottom, 1, m, { edge: true });
     c.cur = P.torso;
   }
   // Юбка: от пояса до bottom, расширение flare.
   function skirt(c, G, m, bottom, flare, opts) {
     c.cur = P.torso;
-    return poly(c, [[G.tx0 + 1, 44], [G.tx1 - 1, 44], [G.tx1 - 1 + flare, bottom], [G.tx0 + 1 - flare, bottom]], m, Object.assign({ edge: true }, opts));
+    return poly(c, [[G.tx0 + 1, 44], [G.tx1, 44], [G.tx1 + flare, bottom], [G.tx0 + 1 - flare, bottom]], m, Object.assign({ edge: true }, opts));
   }
   // Обувь на обеих ногах. top — верх (56 — обычная, меньше — высокая), sole — цвет подошвы.
   // Обычная обувь начинается чуть ниже края штанин (с y=57, верх скруглён), поэтому
@@ -616,7 +624,7 @@
         const r = hairMass(c, k, { fringe: feathers(20, 44, 4, H.cy - 9, H.cy - 2, 1.5, 0), side: H.cy + 6, sideIn: 10.5 });
         partLines(c, r.h, 32, 5, [[20, 10], [44, 10]]);
         // резинки-звёздочки
-        [[19, 9], [45, 9]].forEach(([x, y]) => { c.pts([[x, y - 1], [x - 1, y], [x, y], [x + 1, y], [x, y + 1]], '#ffd84a'); c.px(x, y, '#fff6c2'); });
+        [[19, 9], [44, 9]].forEach(([x, y]) => { c.pts([[x, y - 1], [x - 1, y], [x, y], [x + 1, y], [x, y + 1]], '#ffd84a'); c.px(x, y, '#fff6c2'); });
       } },
     { id: 'hair_buzz', cat: 'hair', name: 'Бокс', en: 'Buzz cut', style: 'sport', rarity: 'common', price: 100,
       draw(c, k) {
@@ -699,7 +707,7 @@
         });
         const r = hairMass(c, k, { fringe: feathers(20, 44, 4, H.cy - 9, H.cy - 2, 1.5, 0), side: H.cy + 4, sideIn: 10.5 });
         partLines(c, r.h, 32, 5, [[20, 14], [44, 14]]);
-        c.pts([[17, 21], [18, 21], [46, 21], [47, 21]], '#ec6fae');
+        c.pts([[17, 21], [18, 21], [45, 21], [46, 21]], '#ec6fae');
       } },
     { id: 'hair_afro', cat: 'hair', name: 'Афро', en: 'Afro', style: 'street', rarity: 'common', price: 300,
       draw(c, k) {
@@ -737,7 +745,7 @@
         const H = k.G.H;
         // ровная густая чёлка и волосы до подбородка, кончики подкручены внутрь
         const r = hairMass(c, k, { rx: H.rx + 3, ry: H.ry + 2.5, fringe: feathers(20, 44, 6, H.cy - 7, H.cy - 3, 0.5, 0), side: H.cy + 11, sideIn: 10 });
-        [[18, H.cy + 10], [46, H.cy + 10]].forEach(([x, y]) => { c.set(x, y, r.h, 3); c.set(x + (x < 32 ? 1 : -1), y + 1, r.h, 3); });
+        [[18, H.cy + 10], [45, H.cy + 10]].forEach(([x, y]) => { c.set(x, y, r.h, 3); c.set(x + (x < 32 ? 1 : -1), y + 1, r.h, 3); });
         partLines(c, r.h, 32, 4, [[22, 11], [27, 8], [37, 8], [42, 11]]);
       } },
     { id: 'hair_wavy', cat: 'hair', name: 'Длинные волны', en: 'Long waves', style: 'classic', rarity: 'rare', price: 700,
@@ -786,11 +794,10 @@
     { id: 'hair_emo', cat: 'hair', name: 'Неформальная чёлка', en: 'Emo fringe', style: 'street', rarity: 'common', price: 360,
       draw(c, k) {
         const H = k.G.H;
-        // длинная косая чёлка закрывает один глаз, сзади — рваные пряди
+        // длинная косая чёлка закрывает один глаз
         const r = hairMass(c, k, { fringe: fringeLine([[18, H.cy - 3], [22, H.cy - 6], [25, H.cy - 8], [28, H.cy - 6], [31, H.cy - 2], [34, H.cy + 2], [37, H.cy + 4], [39, H.cy + 6], [41, H.cy + 3], [43, H.cy + 5], [46, H.cy + 4]]), side: H.cy + 8, sideIn: 11 });
         partLines(c, r.h, 24, 6, [[34, H.cy + 1], [38, H.cy + 3], [42, H.cy + 3], [29, H.cy - 3]]);
         line(c, 24, 5, 24, 9, r.h, 3);
-        [[18, H.cy + 8], [21, H.cy + 9], [44, H.cy + 9], [47, H.cy + 8]].forEach(([x, y]) => { c.set(x, y, r.h, 3); });
       } },
     { id: 'hair_wolf', cat: 'hair', name: 'Волчья стрижка', en: 'Wolf cut', style: 'street', rarity: 'rare', price: 620,
       back(c, k) { backHair(c, k, 37, 17, { point: true }); },
@@ -846,15 +853,17 @@
         [[19, 7, 3.5], [24, 3, 3.5], [29, 1, 3.5], [35, 1, 3.5], [40, 3, 3.5], [45, 7, 3.5]].forEach(([x, y, w], i) => {
           const lean = i < 3 ? -1 : 1;
           poly(c, [[x - w, y + 8], [x + w, y + 8], [x + lean, y], [x - lean * 0.5, y + 3]], F, { edge: true, edgeTone: 2 });
-          line(c, x, y + 3, x, y + 6, Y, 0);
+          const lx = i < 3 ? x : x - 1; // зеркально: у правых языков жёлтая сердцевина левее середины
+          line(c, lx, y + 3, lx, y + 6, Y, 0);
         });
         void r;
         // мерцающие искры над пламенем — два кадра, тоже внутри картинки
         const a = c.layer('fx-a', true), b = c.layer('fx-b', true);
         [19, 24, 29, 35, 40, 45].forEach((x, i) => {
           const y = [7, 3, 1, 1, 3, 7][i];
-          a.px(x + (i % 2 ? 1 : -1), Math.max(0, y - 1), p.T); a.px(x, y + 1, p.L);
-          b.px(x, Math.max(0, y), p.T); b.px(x + (i % 2 ? -1 : 1), y + 2, p.L);
+          const cx = i < 3 ? x : x - 1, out = i < 3 ? -1 : 1; // зеркально относительно середины головы
+          a.px(cx + out, Math.max(0, y - 1), p.T); a.px(cx, y + 1, p.L);
+          b.px(cx, Math.max(0, y), p.T); b.px(cx - out, y + 2, p.L);
         });
       } },
 
@@ -887,7 +896,7 @@
         sleeves(c, G, m, 'short');
         // ретро-закат
         ell(c, 32, 39.5, 5, 4, mat('#ffb347'), {});
-        line(c, 27, 40, 37, 40, '#ff5d73'); line(c, 27, 42, 37, 42, '#ff5d73'); line(c, 27, 44, 37, 44, '#3ec1d3');
+        line(c, 27, 40, 36, 40, '#ff5d73'); line(c, 27, 42, 36, 42, '#ff5d73'); line(c, 27, 44, 36, 44, '#3ec1d3');
       } },
     { id: 'top_polo', cat: 'top', name: 'Поло', en: 'Polo shirt', style: 'sport', rarity: 'common', price: 250,
       pal: { C: '#2f9e8f', D: '#237a6e', L: '#53c1b2' },
@@ -920,7 +929,7 @@
       draw(c, k, p) {
         const G = k.G, m = mat(p.C), A = mat('#1e3a8a');
         c.cur = P.torso; torsoShape(c, G, m, { bottom: 45 });
-        poly(c, [[28, 31], [36, 31], [32, 36]], mat(k.skin, true), { minTone: 2 }); line(c, 28, 31, 32, 36, A, 1); line(c, 36, 31, 32, 36, A, 1);
+        poly(c, [[28, 31], [36, 31], [32, 36]], mat(k.skin, true), { minTone: 2 }); line(c, 28, 31, 31, 35, A, 1); line(c, 35, 31, 32, 35, A, 1);
         sleeves(c, G, m, 'short', { cuff: A });
         // номер 10
         line(c, 28, 38, 28, 43, A, 1); rr(c, 31, 38, 35, 43, 2, A, { tone: 1 }); rr(c, 32, 39, 34, 42, 1, m, { tone: 1 });
@@ -940,7 +949,7 @@
       draw(c, k, p) {
         const G = k.G, m = mat(p.C), L = mat(p.L);
         c.cur = P.torso; torsoShape(c, G, m, { bottom: 46, grow: 1 });
-        rr(c, 28, 30, 36, 33, 2, m, { tone: 2, edge: true });
+        rr(c, 28, 30, 35, 33, 2, m, { tone: 2, edge: true });
         // узор «косы» и ромбы
         for (let x = G.tx0 + 1; x <= G.tx1 - 1; x += 3) { c.set(x, 38, L, 0); c.set(x + 1, 39, L, 0); c.set(x, 40, L, 0); }
         line(c, G.tx0, 44, G.tx1, 44, m, 3);
@@ -964,8 +973,8 @@
         c.cur = P.torso; torsoShape(c, G, m, { grow: 1, up: 1, straight: true });
         ell(c, 32, 31, 7, 3, m, { tone: 2 }); ell(c, 32, 30.5, 3.5, 1.8, mat(k.skin, true), { tone: 2 });
         rr(c, 26, 40, 37, 44, 2, m, { tone: 2 }); line(c, 26, 40, 37, 40, m, 3);
-        line(c, 30, 33, 30, 37, mat('#f4f4f4'), 1); line(c, 34, 33, 34, 37, mat('#f4f4f4'), 1);
-        c.pts([[30, 38], [34, 38]], '#d0d3da');
+        line(c, 30, 33, 30, 37, mat('#f4f4f4'), 1); line(c, 33, 33, 33, 37, mat('#f4f4f4'), 1);
+        c.pts([[30, 38], [33, 38]], '#d0d3da');
         line(c, G.tx0, 45, G.tx1, 45, m, 3);
         sleeves(c, G, m, 'long', { cuff: mat(p.D) });
       } },
@@ -975,10 +984,10 @@
         const G = k.G, m = mat(p.C), L = mat(p.L);
         c.cur = P.torso; torsoShape(c, G, mat(WHITE), { bottom: 45 });
         poly(c, [[G.tx0 - 1, 33], [29, 31], [31, 46], [G.tx0 - 1, 46]], m, { edge: true });
-        poly(c, [[G.tx1 + 1, 33], [35, 31], [33, 46], [G.tx1 + 1, 46]], m, { edge: true });
+        poly(c, [[G.tx1 + 2, 33], [35, 31], [33, 46], [G.tx1 + 2, 46]], m, { edge: true });
         poly(c, [[26, 31], [30, 31], [29, 35]], L, { edge: true }); poly(c, [[38, 31], [34, 31], [35, 35]], L, { edge: true });
-        rr(c, 24, 36, 28, 39, 1, L, { edge: true }); rr(c, 36, 36, 40, 39, 1, L, { edge: true });
-        c.pts([[30, 38], [30, 41], [30, 44], [34, 38], [34, 41], [34, 44]], '#d4af37');
+        rr(c, 24, 36, 28, 39, 1, L, { edge: true }); rr(c, 35, 36, 39, 39, 1, L, { edge: true });
+        c.pts([[30, 38], [30, 41], [30, 44], [33, 38], [33, 41], [33, 44]], '#d4af37');
         line(c, G.tx0, 45, G.tx1, 45, L, 2);
         sleeves(c, G, m, 'long', { cuff: L });
       } },
@@ -1009,7 +1018,7 @@
         const G = k.G, m = mat(p.C);
         c.cur = P.torso;
         for (let y = 33; y <= 44; y += 4) rr(c, G.tx0 - 2, y, G.tx1 + 2, y + 3, 2, m, { edge: true });
-        rr(c, 26, 29, 38, 33, 2, m, { edge: true });
+        rr(c, 26, 29, 37, 33, 2, m, { edge: true });
         line(c, 32, 30, 32, 46, '#d0d3da');
         c.cur = P.larm; for (let y = G.ay0; y < G.ay1; y += 4) rr(c, G.ax0 - 2, y, G.ax1 + 1, y + 3, 2, m, { edge: true });
         c.cur = P.rarm; for (let y = G.ay0; y < G.ay1; y += 4) rr(c, G.bx0 - 1, y, G.bx1 + 2, y + 3, 2, m, { edge: true });
@@ -1020,7 +1029,7 @@
         const G = k.G, m = mat(p.C), L = mat(p.L);
         c.cur = P.torso; torsoShape(c, G, m, { grow: 1 });
         ell(c, 33, 32, 3, 2, mat(WHITE), {});
-        poly(c, [[G.tx0, 32], [29, 31], [26, 38]], L, { edge: true }); poly(c, [[G.tx1, 32], [36, 31], [39, 38]], L, { edge: true });
+        poly(c, [[G.tx0, 32], [29, 31], [26, 38]], L, { edge: true }); poly(c, [[G.tx1 + 1, 32], [35, 31], [38, 38]], L, { edge: true });
         line(c, 30, 33, 34, 46, '#c9ccd3');
         line(c, G.tx0 + 1, 36, G.tx0 + 1, 44, L, 0);
         rr(c, 35, 39, 39, 40, 0, L, {});
@@ -1034,10 +1043,10 @@
         c.cur = P.torso; torsoShape(c, G, m, { grow: 1, straight: true });
         ell(c, 32, 38, 7, 6, m, { edge: true });
         line(c, G.tx0 - 1, 44, G.tx1 + 1, 44, m, 3);
-        rr(c, 30, 35, 34, 40, 1, mat('#c0392b'), { edge: true }); line(c, 32, 35, 32, 40, '#f2c230');
+        rr(c, 30, 35, 33, 40, 1, mat('#c0392b'), { edge: true }); line(c, 31, 36, 31, 39, '#f2c230'); line(c, 32, 36, 32, 39, '#f2c230');
         sleeves(c, G, m, 'long');
         c.cur = P.larm; ell(c, G.ax0 + 1, G.ay0 + 1, 4.5, 3.5, L, { edge: true });
-        c.cur = P.rarm; ell(c, G.bx0 + 2, G.ay0 + 1, 4.5, 3.5, L, { edge: true });
+        c.cur = P.rarm; ell(c, G.bx0 + 3, G.ay0 + 1, 4.5, 3.5, L, { edge: true });
       } },
     { id: 'top_school', cat: 'top', name: 'Школьный свитер', en: 'School sweater', style: 'classic', rarity: 'common', price: 340,
       pal: { C: '#e8d3a8', D: '#cdb586', B: '#d94a4a' },
@@ -1047,10 +1056,10 @@
         // воротник рубашки и бантик
         poly(c, [[27, 31], [32, 34], [29, 36]], W, { edge: true }); poly(c, [[37, 31], [32, 34], [35, 36]], W, { edge: true });
         poly(c, [[28, 33], [32, 35], [28, 37]], mat(p.B), { edge: true }); poly(c, [[36, 33], [32, 35], [36, 37]], mat(p.B), { edge: true });
-        rr(c, 31, 34, 33, 36, 1, mat(p.B), { tone: 1 });
+        rr(c, 31, 34, 32, 36, 1, mat(p.B), { tone: 1 });
         // вязаный низ и мягкие складки
         line(c, G.tx0, 44, G.tx1, 44, m, 2); line(c, G.tx0, 45, G.tx1, 45, m, 3);
-        line(c, 26, 38, 27, 42, m, 2); line(c, 38, 38, 37, 42, m, 2);
+        line(c, 26, 38, 27, 42, m, 2); line(c, 37, 38, 36, 42, m, 2);
         sleeves(c, G, m, 'long', { cuff: mat(p.D) });
       } },
     { id: 'top_sweatshirt', cat: 'top', name: 'Мягкий свитшот', en: 'Soft sweatshirt', style: 'street', rarity: 'common', price: 300,
@@ -1058,22 +1067,22 @@
       draw(c, k, p) {
         const G = k.G, m = mat(p.C);
         c.cur = P.torso; torsoShape(c, G, m, { grow: 1, straight: true });
-        neckRound(c, k, m); line(c, 28, 33, 36, 33, m, 2);
+        neckRound(c, k, m); line(c, 28, 33, 35, 33, m, 2);
         rr(c, G.tx0 - 1, 44, G.tx1 + 1, 46, 1, m, { tone: 2, edge: 'bottom' });
         // маленькое сердечко
-        c.pts([[30, 37], [31, 36], [32, 37], [33, 36], [34, 37], [31, 38], [32, 38], [33, 38], [32, 39]], '#ffffff');
+        c.pts([[30, 36], [33, 36], [29, 37], [30, 37], [31, 37], [32, 37], [33, 37], [34, 37], [30, 38], [31, 38], [32, 38], [33, 38], [31, 39], [32, 39]], '#ffffff');
         sleeves(c, G, m, 'long', { cuff: mat(p.D) });
       } },
-    { id: 'top_shirtdress', cat: 'top', name: 'Рубашка-оверсайз', en: 'Oversized shirt', style: 'classic', rarity: 'common', price: 330,
+    { id: 'top_shirtdress', cat: 'top', long: true, name: 'Рубашка-оверсайз', en: 'Oversized shirt', style: 'classic', rarity: 'common', price: 330,
       pal: { C: '#f7f5f0', D: '#dcd8cf' },
       draw(c, k, p) {
         const G = k.G, m = mat(p.C);
         // длинная свободная рубашка, закрывает бёдра; широкие рукава
         c.cur = P.torso;
-        poly(c, [[G.tx0 - 1, G.ty0 + 1], [G.tx0 + 2, G.ty0 - 1], [G.tx1 - 2, G.ty0 - 1], [G.tx1 + 1, G.ty0 + 1], [G.tx1 + 3, 51], [32, 52], [G.tx0 - 3, 51]], m, { edge: true });
+        poly(c, [[G.tx0 - 1, G.ty0 + 1], [G.tx0 + 2, G.ty0 - 1], [G.tx1 - 1, G.ty0 - 1], [G.tx1 + 2, G.ty0 + 1], [G.tx1 + 4, 51], [32, 52], [G.tx0 - 3, 51]], m, { edge: true });
         poly(c, [[27, 31], [32, 34], [29, 36]], m, { edge: true, tone: 0 }); poly(c, [[37, 31], [32, 34], [35, 36]], m, { edge: true, tone: 0 });
         line(c, 32, 34, 32, 51, m, 2); c.pts([[31, 37], [31, 41], [31, 45]], '#c9c4b8');
-        line(c, 26, 40, 25, 50, m, 2); line(c, 38, 40, 39, 50, m, 2);
+        line(c, 26, 40, 25, 50, m, 2); line(c, 37, 40, 38, 50, m, 2);
         sleeves(c, G, m, 'long', { wide: 2, cuff: mat(p.D) });
       } },
     { id: 'top_cropped', cat: 'top', name: 'Укороченное худи', en: 'Cropped hoodie', style: 'street', rarity: 'common', price: 360,
@@ -1083,32 +1092,32 @@
         c.cur = P.torso; torsoShape(c, G, m, { grow: 1, up: 1, straight: true, bottom: 41 });
         rr(c, G.tx0 - 1, 40, G.tx1 + 1, 42, 1, m, { tone: 2, edge: 'bottom' });
         ell(c, 32, 31, 7, 3, m, { tone: 2 }); ell(c, 32, 30.5, 3.5, 1.8, mat(k.skin, true), { tone: 2 });
-        line(c, 30, 33, 30, 37, mat('#f4f4f4'), 1); line(c, 34, 33, 34, 37, mat('#f4f4f4'), 1);
+        line(c, 30, 33, 30, 37, mat('#f4f4f4'), 1); line(c, 33, 33, 33, 37, mat('#f4f4f4'), 1);
         sleeves(c, G, m, 'long', { cuff: mat(p.D) });
       } },
-    { id: 'top_cardigan', cat: 'top', name: 'Длинный кардиган', en: 'Long cardigan', style: 'classic', rarity: 'rare', price: 600,
+    { id: 'top_cardigan', cat: 'top', long: true, name: 'Длинный кардиган', en: 'Long cardigan', style: 'classic', rarity: 'rare', price: 600,
       pal: { C: '#c9a27a', D: '#a8835d', L: '#e2c4a2' },
       draw(c, k, p) {
         const G = k.G, m = mat(p.C), W = mat('#f4f1ea');
         c.cur = P.torso; torsoShape(c, G, W, { bottom: 45 }); neckRound(c, k);
         // полы кардигана ниже бёдер, крупная вязка
         poly(c, [[G.tx0 - 1, 33], [29, 31], [30, 54], [G.tx0 - 2, 54]], m, { edge: true });
-        poly(c, [[G.tx1 + 1, 33], [35, 31], [34, 54], [G.tx1 + 2, 54]], m, { edge: true });
+        poly(c, [[G.tx1 + 2, 33], [35, 31], [34, 54], [G.tx1 + 3, 54]], m, { edge: true });
         for (let y = 36; y <= 52; y += 3) { c.set(G.tx0 + 1, y, m, 0); c.set(G.tx1 - 1, y, m, 0); }
-        c.pts([[29, 38], [29, 43], [35, 38], [35, 43]], p.D);
-        rr(c, G.tx0 - 2, 53, 30, 54, 0, mat(p.D), { tone: 2 }); rr(c, 34, 53, G.tx1 + 2, 54, 0, mat(p.D), { tone: 2 });
+        c.pts([[29, 38], [29, 43], [34, 38], [34, 43]], p.D);
+        rr(c, G.tx0 - 2, 53, 29, 54, 0, mat(p.D), { tone: 2 }); rr(c, 34, 53, G.tx1 + 2, 54, 0, mat(p.D), { tone: 2 });
         sleeves(c, G, m, 'long', { cuff: mat(p.L) });
       } },
-    { id: 'top_trench', cat: 'top', name: 'Тренч', en: 'Trench coat', style: 'classic', rarity: 'rare', price: 1050,
+    { id: 'top_trench', cat: 'top', long: true, name: 'Тренч', en: 'Trench coat', style: 'classic', rarity: 'rare', price: 1050,
       pal: { C: '#c8a978', D: '#a88b5c', B: '#5a4630' },
       draw(c, k, p) {
         const G = k.G, m = mat(p.C);
         // длинное пальто с поясом и двубортной застёжкой
         c.cur = P.torso;
-        poly(c, [[G.tx0 - 1, G.ty0 + 1], [G.tx0 + 2, G.ty0 - 1], [G.tx1 - 2, G.ty0 - 1], [G.tx1 + 1, G.ty0 + 1], [G.tx1 + 3, 56], [G.tx0 - 3, 56]], m, { edge: true });
+        poly(c, [[G.tx0 - 1, G.ty0 + 1], [G.tx0 + 2, G.ty0 - 1], [G.tx1 - 1, G.ty0 - 1], [G.tx1 + 2, G.ty0 + 1], [G.tx1 + 4, 56], [G.tx0 - 3, 56]], m, { edge: true });
         poly(c, [[27, 31], [32, 36], [28, 37], [25, 33]], m, { edge: true, tone: 0 }); poly(c, [[37, 31], [32, 36], [36, 37], [39, 33]], m, { edge: true, tone: 0 });
         line(c, 33, 36, 33, 56, m, 3);
-        rr(c, G.tx0 - 2, 43, G.tx1 + 2, 44, 0, mat(p.D), { tone: 2 }); rr(c, 31, 42, 34, 45, 0, mat(p.B), { tone: 1 });
+        rr(c, G.tx0 - 2, 43, G.tx1 + 2, 44, 0, mat(p.D), { tone: 2 }); rr(c, 30, 42, 33, 45, 0, mat(p.B), { tone: 1 });
         c.pts([[29, 38], [29, 40], [36, 38], [36, 40], [29, 48], [36, 48]], p.B);
         sleeves(c, G, m, 'long', { cuff: mat(p.D) });
       } },
@@ -1132,21 +1141,21 @@
         c.cur = P.torso; torsoShape(c, G, m, { grow: 1, bottom: 46 });
         c.cur = P.larm; poly(c, [[G.ax0 - 5, G.ay0 + 1], [G.ax1 + 2, G.ay0 - 2], [G.ax1 + 1, G.ay0 + 5], [G.ax0 - 3, G.ay0 + 5]], m, { edge: true });
         rr(c, G.ax0 - 1, G.ay0 + 4, G.ax1 + 1, G.ay1, 2, m, { edge: true });
-        c.cur = P.rarm; poly(c, [[G.bx1 + 5, G.ay0 + 1], [G.bx0 - 2, G.ay0 - 2], [G.bx0 - 1, G.ay0 + 5], [G.bx1 + 3, G.ay0 + 5]], m, { edge: true });
+        c.cur = P.rarm; poly(c, [[G.bx1 + 6, G.ay0 + 1], [G.bx0 - 1, G.ay0 - 2], [G.bx0, G.ay0 + 5], [G.bx1 + 4, G.ay0 + 5]], m, { edge: true });
         rr(c, G.bx0 - 1, G.ay0 + 4, G.bx1 + 1, G.ay1, 2, m, { edge: true });
         c.cur = P.torso;
         line(c, 32, 32, 32, 46, mat(p.A), 1); poly(c, [[29, 31], [35, 31], [32, 35]], mat(k.skin, true), { minTone: 2 });
         line(c, G.tx0, 41, G.tx1, 41, m, 3);
       } },
-    { id: 'top_robe', cat: 'top', name: 'Мантия мага', en: 'Wizard robe', style: 'fantasy', rarity: 'legendary', price: 5000,
+    { id: 'top_robe', cat: 'top', long: true, name: 'Мантия мага', en: 'Wizard robe', style: 'fantasy', rarity: 'legendary', price: 5000,
       pal: { C: '#4b2a8a', D: '#361d66', R: '#7df9ff' },
       draw(c, k, p) {
         const G = k.G, m = mat(p.C), T = mat(GOLD);
         c.cur = P.torso;
-        poly(c, [[G.tx0, G.ty0 + 1], [G.tx0 + 3, G.ty0 - 1], [G.tx1 - 3, G.ty0 - 1], [G.tx1, G.ty0 + 1], [G.tx1 + 4, 60], [G.tx0 - 4, 60]], m, { edge: true });
-        rr(c, 31, 32, 33, 60, 0, T, {}); line(c, G.tx0 - 3, 59, G.tx1 + 3, 59, T, 1);
-        c.cur = P.larm; poly(c, [[G.ax0 - 1, G.ay0], [G.ax1 + 1, G.ay0], [G.ax1 + 2, G.ay1 + 1], [G.ax0 - 4, G.ay1 + 1]], m, { edge: true });
-        c.cur = P.rarm; poly(c, [[G.bx0 - 1, G.ay0], [G.bx1 + 1, G.ay0], [G.bx1 + 4, G.ay1 + 1], [G.bx0 - 2, G.ay1 + 1]], m, { edge: true });
+        poly(c, [[G.tx0, G.ty0 + 1], [G.tx0 + 3, G.ty0 - 1], [G.tx1 - 2, G.ty0 - 1], [G.tx1 + 1, G.ty0 + 1], [G.tx1 + 5, 60], [G.tx0 - 4, 60]], m, { edge: true });
+        rr(c, 30, 32, 33, 60, 0, T, {}); line(c, G.tx0 - 3, 59, G.tx1 + 3, 59, T, 1);
+        c.cur = P.larm; poly(c, [[G.ax0 - 1, G.ay0], [G.ax1 + 2, G.ay0], [G.ax1 + 3, G.ay1 + 1], [G.ax0 - 4, G.ay1 + 1]], m, { edge: true });
+        c.cur = P.rarm; poly(c, [[G.bx0 - 1, G.ay0], [G.bx1 + 2, G.ay0], [G.bx1 + 5, G.ay1 + 1], [G.bx0 - 2, G.ay1 + 1]], m, { edge: true });
         c.cur = P.torso;
         const r = c.layer('fx-pulse', true);
         [[26, 38], [38, 41], [25, 50], [39, 53], [28, 56], [36, 47]].forEach(([x, y]) => { r.px(x, y, p.R); r.px(x + 1, y, '#ffffff'); r.px(x, y + 1, p.R); });
@@ -1167,8 +1176,8 @@
       draw(c, k, p) {
         const G = k.G, m = mat(p.C), W = mat(WHITE);
         trousers(c, G, m, 51, { widen: 1 });
-        c.cur = P.legl; line(c, G.lx0 - 2, 47, G.lx0 - 2, 51, W, 1);
-        c.cur = P.legr; line(c, G.rx1 + 2, 47, G.rx1 + 2, 51, W, 1);
+        c.cur = P.legl; line(c, G.lx0 - 1, 47, G.lx0 - 1, 50, W, 1);
+        c.cur = P.legr; line(c, G.rx1 + 1, 47, G.rx1 + 1, 50, W, 1);
       } },
     { id: 'pants_leggings', cat: 'pants', name: 'Леггинсы', en: 'Leggings', style: 'sport', rarity: 'common', price: 150,
       pal: { C: '#2a2a35', D: '#1d1d26' },
@@ -1191,9 +1200,9 @@
       draw(c, k, p) {
         const G = k.G, m = mat(p.C), W = mat(WHITE);
         trousers(c, G, m, 57, { widen: 1 });
-        c.pts([[31, 45], [33, 45], [31, 46], [33, 47]], WHITE);
-        c.cur = P.legl; line(c, G.lx0 - 2, 47, G.lx0 - 2, 55, W, 1); rr(c, G.lx0 - 1, 55, G.lx1 + 1, 57, 1, m, { tone: 2 });
-        c.cur = P.legr; line(c, G.rx1 + 2, 47, G.rx1 + 2, 55, W, 1); rr(c, G.rx0 - 1, 55, G.rx1 + 1, 57, 1, m, { tone: 2 });
+        c.pts([[30, 45], [33, 45], [30, 46], [33, 47]], WHITE);
+        c.cur = P.legl; line(c, G.lx0 - 1, 47, G.lx0 - 1, 54, W, 1); rr(c, G.lx0 - 2, 55, G.lx1 + 1, 57, 1, m, { tone: 2 });
+        c.cur = P.legr; line(c, G.rx1 + 1, 47, G.rx1 + 1, 54, W, 1); rr(c, G.rx0 - 1, 55, G.rx1 + 2, 57, 1, m, { tone: 2 });
       } },
     { id: 'pants_skirt', cat: 'pants', name: 'Юбка в клетку', en: 'Plaid skirt', style: 'classic', rarity: 'common', price: 250,
       pal: { C: '#b23a48', D: '#8e2c39', L: '#d65a68' },
@@ -1207,11 +1216,15 @@
       pal: { C: '#4a3a4f', D: '#352938' },
       draw(c, k, p) {
         const G = k.G, m = mat(p.C);
-        skirt(c, G, m, 52, 4);
-        // складки: светлая полоса и тень рядом
-        for (let x = G.tx0 - 1; x <= G.tx1 + 1; x += 3) {
-          const dx = (x - 32) * 0.22;
-          line(c, x, 46, x + dx, 51, m, 3); line(c, x + 1, 46, x + 1 + dx, 51, m, 0);
+        // складки: светлая полоса и тень рядом (только внутри самой юбки)
+        const mask = skirt(c, G, m, 52, 4);
+        for (let x = G.tx0 + 1; x <= G.tx1 - 2; x += 3) {
+          const dx = (x + 1 - 32) * 0.22;
+          for (let y = 46; y <= 51; y++) {
+            const xx = Math.round(x + dx * (y - 46) / 5);
+            if (mask.has(IX(xx, y))) c.t[IX(xx, y)] = 3;
+            if (mask.has(IX(xx + 1, y))) c.t[IX(xx + 1, y)] = 0;
+          }
         }
         line(c, G.tx0 + 1, 44, G.tx1 - 1, 44, m, 3);
       } },
@@ -1240,7 +1253,7 @@
         const G = k.G, m = mat(p.C);
         // авангард: косой край — с одной стороны короткая, с другой до щиколотки
         c.cur = P.torso;
-        poly(c, [[G.tx0 + 1, 44], [G.tx1 - 1, 44], [G.tx1 + 3, 57], [G.tx0 - 2, 50]], m, { edge: true });
+        poly(c, [[G.tx0 + 1, 44], [G.tx1, 44], [G.tx1 + 4, 57], [G.tx0 - 2, 50]], m, { edge: true });
         line(c, G.tx0 - 1, 50, G.tx1 + 2, 57, mat(p.L), 1);
         [28, 33, 37].forEach((x) => line(c, x, 45, x + 1, 50 + (x - 28) * 0.6, m, 2));
       } },
@@ -1269,7 +1282,7 @@
         c.cur = P.legl; rr(c, G.lx0 - 2, 50, G.lx0 + 2, 54, 1, m, { tone: 2, edge: true });
         c.cur = P.legr; rr(c, G.rx1 - 2, 50, G.rx1 + 2, 54, 1, m, { tone: 2, edge: true });
       } },
-    { id: 'pants_wide', cat: 'pants', name: 'Широкие брюки', en: 'Wide-leg pants', style: 'street', rarity: 'common', price: 330,
+    { id: 'pants_wide', cat: 'pants', over: true, name: 'Широкие брюки', en: 'Wide-leg pants', style: 'street', rarity: 'common', price: 330,
       pal: { C: '#6a5acd', D: '#5446a8' },
       draw(c, k, p) {
         const G = k.G, m = mat(p.C);
@@ -1286,7 +1299,7 @@
         c.cur = P.legl; line(c, 27, 48, 27, 56, m, 0);
         c.cur = P.legr; line(c, 36, 48, 36, 56, m, 0);
       } },
-    { id: 'pants_bell', cat: 'pants', name: 'Клёш', en: 'Flared pants', style: 'street', rarity: 'rare', price: 550,
+    { id: 'pants_bell', cat: 'pants', over: true, name: 'Клёш', en: 'Flared pants', style: 'street', rarity: 'rare', price: 550,
       pal: { C: '#7d5ba6', D: '#634788' },
       draw(c, k, p) {
         const G = k.G, m = mat(p.C);
@@ -1308,7 +1321,7 @@
         const G = k.G, m = mat(p.C), R = mat('#c0392b');
         skirt(c, G, m, 53, 2);
         [26, 30, 34, 38].forEach((x) => line(c, x, 45, x, 52, m, 3)); [47, 50].forEach((y) => line(c, G.tx0, y, G.tx1, y, R, 1));
-        rr(c, 30, 45, 34, 49, 1, mat('#7a4a2a'), { edge: true });
+        rr(c, 30, 45, 33, 49, 1, mat('#7a4a2a'), { edge: true });
       } },
     { id: 'pants_tutu', cat: 'pants', name: 'Пышная юбка', en: 'Tutu skirt', style: 'fantasy', rarity: 'rare', price: 700,
       pal: { C: '#f7a8c8', D: '#e083aa', L: '#fcd2e3' },
@@ -1395,7 +1408,7 @@
       draw(c, k, p) {
         shoes(c, mat(p.C), 56, '#0c0c10', (x0) => { c.px(x0 + 2, 57, p.L); c.px(x0 + 3, 57, p.L); line(c, x0 + 4, 57, x0 + 7, 57, mat(p.C), 3); });
       } },
-    { id: 'shoes_kneesocks', cat: 'shoes', name: 'Гольфы и лоферы', en: 'Knee socks & loafers', style: 'classic', rarity: 'common', price: 320, tall: true,
+    { id: 'shoes_kneesocks', cat: 'shoes', name: 'Гольфы и лоферы', en: 'Knee socks & loafers', style: 'classic', rarity: 'common', price: 320,
       pal: { C: '#2b2b3a', D: '#1c1c28', S: '#f6f4ef' },
       draw(c, k, p) {
         const S = mat(p.S), m = mat(p.C);
@@ -1411,7 +1424,7 @@
         });
         c.cur = P.torso;
       } },
-    { id: 'shoes_slippers', cat: 'shoes', name: 'Тапочки и тёплые носки', en: 'Slippers & cozy socks', style: 'classic', rarity: 'common', price: 150, tall: true,
+    { id: 'shoes_slippers', cat: 'shoes', name: 'Тапочки и тёплые носки', en: 'Slippers & cozy socks', style: 'classic', rarity: 'common', price: 150,
       pal: { C: '#f2a7b8', D: '#d98698', S: '#f4ead8' },
       draw(c, k, p) {
         const S = mat(p.S), m = mat(p.C);
@@ -1419,8 +1432,8 @@
           c.cur = part;
           rr(c, l0, 52, l1, 57, 1, S, { edge: true });
           for (let x = l0 + 1; x < l1; x += 2) c.set(x, 53, S, 2);
-          ell(c, (x0 + x1) / 2, 59, (x1 - x0) / 2 + 0.5, 2.6, m, { edge: true });
-          c.set((x0 + x1) / 2 - 1, 58, m, 0); c.set((x0 + x1) / 2, 58, m, 0);
+          ell(c, (x0 + x1 + 1) / 2, 59, (x1 - x0) / 2 + 0.5, 2.6, m, { edge: true });
+          c.set((x0 + x1 - 1) / 2, 58, m, 0); c.set((x0 + x1 + 1) / 2, 58, m, 0);
           line(c, x0 + 1, 61, x1 - 1, 61, mat(p.D), 2);
         });
         c.cur = P.torso;
@@ -1508,7 +1521,7 @@
       } },
 
     // ===================== АКСЕССУАРЫ =====================
-    { id: 'acc_cap', cat: 'acc', name: 'Кепка', en: 'Cap', style: 'sport', rarity: 'common', price: 100,
+    { id: 'acc_cap', cat: 'acc', hat: 13, name: 'Кепка', en: 'Cap', style: 'sport', rarity: 'common', price: 100,
       pal: { C: '#e74c3c', D: '#b8392c' },
       draw(c, k, p) {
         const m = mat(p.C), H = k.G.H;
@@ -1517,7 +1530,7 @@
         ell(c, 32, 6, 1.5, 1, mat(WHITE), { tone: 1 });
         c.pts([[29, 11], [30, 10], [31, 11]], WHITE);
       } },
-    { id: 'acc_bandana', cat: 'acc', name: 'Бандана', en: 'Bandana', style: 'street', rarity: 'common', price: 120,
+    { id: 'acc_bandana', cat: 'acc', hat: 11, name: 'Бандана', en: 'Bandana', style: 'street', rarity: 'common', price: 120,
       pal: { C: '#c0392b', D: '#962d22' },
       draw(c, k, p) {
         const m = mat(p.C), H = k.G.H;
@@ -1529,7 +1542,7 @@
       pal: { C: '#e74c3c', D: '#b8392c' },
       draw(c, k, p) {
         const m = mat(p.C);
-        c.cur = P.head; rr(c, 18, 11, 46, 13, 1, m, { edge: true }); line(c, 29, 12, 35, 12, mat(WHITE), 1);
+        c.cur = P.head; rr(c, 18, 11, 45, 13, 1, m, { edge: true }); line(c, 29, 12, 34, 12, mat(WHITE), 1);
       } },
     { id: 'acc_glasses', cat: 'acc', name: 'Очки', en: 'Glasses', style: 'classic', rarity: 'common', price: 150,
       pal: { F: '#3a2f46' },
@@ -1540,30 +1553,30 @@
           for (let y = y0; y <= y0 + 6; y++) { c.px(x0, y, F); c.px(x0 + 5, y, F); }
           c.px(x0 + 4, y0 + 1, '#ffffff');
         });
-        line(c, 29, 20, 34, 20, F); c.px(18, 20, F); c.px(46, 20, F);
+        line(c, 29, 20, 34, 20, F); c.px(18, 20, F); c.px(45, 20, F);
       } },
     { id: 'acc_bowtie', cat: 'acc', name: 'Галстук-бабочка', en: 'Bow tie', style: 'classic', rarity: 'common', price: 160,
       pal: { C: '#c0392b', D: '#962d22' },
       draw(c, k, p) {
         const m = mat(p.C);
         c.cur = P.torso; poly(c, [[27, 30], [31, 32], [27, 34]], m, { edge: true }); poly(c, [[37, 30], [33, 32], [37, 34]], m, { edge: true });
-        rr(c, 31, 31, 33, 33, 1, mat(p.D), { tone: 1 });
+        rr(c, 31, 31, 32, 33, 1, mat(p.D), { tone: 1 });
       } },
-    { id: 'acc_beanie', cat: 'acc', name: 'Шапка-бини', en: 'Beanie', style: 'street', rarity: 'common', price: 180,
+    { id: 'acc_beanie', cat: 'acc', hat: 14, name: 'Шапка-бини', en: 'Beanie', style: 'street', rarity: 'common', price: 180,
       pal: { C: '#3b82f6', D: '#2c64c4' },
       draw(c, k, p) {
         const m = mat(p.C), H = k.G.H;
         headwear(c, k, m, H.cy - 6, 4);
-        rr(c, H.cx - H.rx - 1.5, H.cy - 8, H.cx + H.rx + 1.5, H.cy - 5, 1, m, { tone: 2, edge: true });
-        for (let x = 20; x <= 44; x += 2) c.set(x, H.cy - 6, m, 3);
+        rr(c, H.cx - H.rx - 1.5, H.cy - 8, H.cx + H.rx + 0.5, H.cy - 5, 1, m, { tone: 2, edge: true });
+        for (let x = 20; x <= 43; x += 2) { c.set(x, H.cy - 7, m, 3); c.set(x + 1, H.cy - 6, m, 3); }
         ell(c, 32, 2.5, 3, 2.5, mat(WHITE), { edge: true });
       } },
     { id: 'acc_scarf', cat: 'acc', name: 'Шарф', en: 'Scarf', style: 'classic', rarity: 'common', price: 200,
       pal: { C: '#d64545', D: '#a83232', L: '#ee7070' },
       draw(c, k, p) {
         const m = mat(p.C), L = mat(p.L);
-        c.cur = P.torso; rr(c, 24, 29, 40, 34, 3, m, { edge: true }); rr(c, 35, 33, 39, 42, 1, m, { edge: true });
-        for (let x = 25; x <= 39; x += 3) line(c, x, 30, x, 33, L, 0);
+        c.cur = P.torso; rr(c, 24, 29, 39, 34, 3, m, { edge: true }); rr(c, 35, 33, 39, 42, 1, m, { edge: true });
+        for (let x = 26; x <= 38; x += 3) line(c, x, 30, x, 33, L, 0);
         line(c, 35, 41, 39, 41, L, 0);
       } },
     { id: 'acc_puffscarf', cat: 'acc', name: 'Тёплый шарф', en: 'Cozy scarf', style: 'classic', rarity: 'common', price: 240,
@@ -1602,7 +1615,7 @@
         c.cur = P.head;
         [[18, 24], [46, 24]].forEach(([x, y]) => { ell(c, x, y, 1.6, 1.6, mat(p.W), { edge: true }); c.px(x - 1, y - 1, '#ffffff'); });
       } },
-    { id: 'acc_chick', cat: 'acc', name: 'Цыплёнок на голове', en: 'Chick on head', style: 'fantasy', rarity: 'rare', price: 500,
+    { id: 'acc_chick', cat: 'acc', sits: 'top', name: 'Цыплёнок на голове', en: 'Chick on head', style: 'fantasy', rarity: 'rare', price: 500,
       pal: { C: '#f5c84a', D: '#d9a52a' },
       draw(c, k, p) {
         const m = mat(p.C);
@@ -1632,15 +1645,15 @@
         const m = mat(p.C);
         c.cur = P.head;
         // авангард: цельная полупрозрачная полоса с переливом
-        rr(c, 19, 18, 45, 22, 2, m, { edge: true });
+        rr(c, 19, 18, 44, 22, 2, m, { edge: true });
         line(c, 21, 19, 30, 19, mat(p.L), 0); line(c, 34, 19, 38, 19, mat(p.L), 0);
-        line(c, 17, 20, 19, 20, mat(p.D), 2); line(c, 45, 20, 47, 20, mat(p.D), 2);
+        line(c, 17, 20, 18, 20, mat(p.D), 2); line(c, 45, 20, 46, 20, mat(p.D), 2);
       } },
     { id: 'acc_chain', cat: 'acc', name: 'Цепочка', en: 'Gold chain', style: 'street', rarity: 'common', price: 250,
       pal: { G: '#e8c547', D: '#b8962f' },
       draw(c, k, p) {
         c.cur = P.torso;
-        for (let i = 0; i <= 12; i++) { const x = 26 + i, y = 33 + Math.round(Math.sin(i / 12 * Math.PI) * 5); c.px(x, y, i % 2 ? p.D : p.G); }
+        for (let i = 0; i <= 13; i++) { const x = 25 + i, y = 33 + Math.round(Math.sin(i / 13 * Math.PI) * 5); c.px(x, y, (i < 7 ? i : 13 - i) % 2 ? p.D : p.G); }
         ell(c, 32, 39.5, 2, 2, mat(p.G), { edge: true });
       } },
     { id: 'acc_headphones', cat: 'acc', name: 'Наушники', en: 'Headphones', style: 'street', rarity: 'common', price: 350,
@@ -1648,25 +1661,31 @@
       draw(c, k, p) {
         const m = mat(p.C), B = mat(DARK), H = k.G.H;
         c.cur = P.head;
-        for (let x = 17; x <= 47; x++) { const t2 = (x - 32) / 15; const y = 9 - Math.round(Math.sqrt(Math.max(0, 1 - t2 * t2)) * 8); c.set(x, y, B, 1); c.set(x, y + 1, B, 2); }
-        rr(c, 15, 16, 20, 25, 2, m, { edge: true }); rr(c, 44, 16, 49, 25, 2, m, { edge: true });
+        // дужка — половина эллипса от чашек до верха причёски (на пышных волосах она выше)
+        const top = Math.max(-OY + 1, Math.min(4, (k.top ? k.top.wide : 4) - 2)), ry = 17 - top;
+        for (let a = 0; a <= 200; a++) {
+          const an = Math.PI * a / 200, cs = Math.cos(an), sn = Math.sin(an);
+          c.set(Math.floor(32 - cs * 14.5), Math.floor(17 - sn * (ry - 1)), B, 2);
+          c.set(Math.floor(32 - cs * 15.5), Math.floor(17 - sn * ry), B, 1);
+        }
+        rr(c, 15, 16, 20, 25, 2, m, { edge: true }); rr(c, 43, 16, 48, 25, 2, m, { edge: true });
         void H;
       } },
     { id: 'acc_sunglasses', cat: 'acc', name: 'Солнечные очки', en: 'Sunglasses', style: 'street', rarity: 'rare', price: 500,
       pal: { K: '#15151c' },
       draw(c, k, p) {
         const m = mat(p.K);
-        c.cur = P.head; rr(c, 22, 18, 29, 23, 2, m, { edge: true }); rr(c, 35, 18, 42, 23, 2, m, { edge: true });
-        line(c, 29, 19, 35, 19, m, 2); line(c, 18, 19, 22, 19, m, 2); line(c, 42, 19, 46, 19, m, 2);
-        c.pts([[24, 19], [25, 19], [24, 20], [37, 19], [38, 19], [37, 20]], '#a8b4cc');
+        c.cur = P.head; rr(c, 22, 18, 29, 23, 2, m, { edge: true }); rr(c, 34, 18, 41, 23, 2, m, { edge: true });
+        line(c, 30, 19, 33, 19, m, 2); line(c, 18, 19, 21, 19, m, 2); line(c, 42, 19, 45, 19, m, 2);
+        c.pts([[24, 19], [25, 19], [24, 20], [36, 19], [37, 19], [36, 20]], '#a8b4cc');
       } },
-    { id: 'acc_fedora', cat: 'acc', name: 'Шляпа', en: 'Fedora', style: 'classic', rarity: 'rare', price: 600,
+    { id: 'acc_fedora', cat: 'acc', hat: 10, name: 'Шляпа', en: 'Fedora', style: 'classic', rarity: 'rare', price: 600,
       pal: { C: '#5a4636', D: '#43342a' },
       draw(c, k, p) {
         const m = mat(p.C), H = k.G.H;
         c.cur = P.head;
-        rr(c, 21, 1, 43, 9, 4, m, { edge: true }); line(c, 32, 1, 32, 4, m, 3);
-        rr(c, 21, 7, 43, 9, 0, mat('#1f1f24'), { tone: 1 });
+        rr(c, 21, 1, 42, 9, 4, m, { edge: true }); line(c, 31, 1, 31, 4, m, 3); line(c, 32, 1, 32, 4, m, 3);
+        rr(c, 21, 7, 42, 9, 0, mat('#1f1f24'), { tone: 1 });
         ell(c, 32, 10, 18, 2.2, mat(p.D), { edge: true });
         void H;
       } },
@@ -1681,7 +1700,7 @@
         }, m, { edge: true });
         poly(c, [[45, 22], [51, 20], [49, 26]], m, { edge: true });
       } },
-    { id: 'acc_wizard', cat: 'acc', name: 'Шляпа волшебника', en: 'Wizard hat', style: 'fantasy', rarity: 'rare', price: 1100,
+    { id: 'acc_wizard', cat: 'acc', hat: 10, name: 'Шляпа волшебника', en: 'Wizard hat', style: 'fantasy', rarity: 'rare', price: 1100,
       pal: { C: '#3a4fb0', D: '#2c3c8a' },
       draw(c, k, p) {
         const m = mat(p.C);
@@ -1690,7 +1709,7 @@
         ell(c, 32, 10, 18, 2.4, mat(p.D), { edge: true });
         [[28, 6], [36, 4], [33, 8]].forEach(([x, y]) => { c.px(x, y, '#f5c83a'); c.px(x + 1, y, '#fff3a0'); });
       } },
-    { id: 'acc_crown', cat: 'acc', name: 'Корона', en: 'Crown', style: 'fantasy', rarity: 'rare', price: 1200,
+    { id: 'acc_crown', cat: 'acc', sits: 'wide', name: 'Корона', en: 'Crown', style: 'fantasy', rarity: 'rare', price: 1200,
       pal: { G: '#f2c230', D: '#c99a1a' },
       draw(c, k, p) {
         const m = mat(p.G);
@@ -1698,12 +1717,12 @@
         poly(c, [[22, 8], [42, 8], [42, 1], [38, 5], [35, 0], [32, 4], [29, 0], [26, 5], [22, 1]], m, { edge: true });
         ell(c, 32, 6, 1.5, 1.4, mat('#3a7bd5'), { tone: 0 }); ell(c, 26, 6, 1.2, 1.2, mat('#e0314b'), { tone: 0 }); ell(c, 38, 6, 1.2, 1.2, mat('#e0314b'), { tone: 0 });
       } },
-    { id: 'acc_halo', cat: 'acc', name: 'Нимб', en: 'Halo', style: 'fantasy', rarity: 'legendary', price: 4000,
+    { id: 'acc_halo', cat: 'acc', sits: 'top', name: 'Нимб', en: 'Halo', style: 'fantasy', rarity: 'legendary', price: 4000,
       pal: { A: '#fff3a0', B: '#ffe066', C: '#fff8cc' },
       draw(c, k, p) {
         c.cur = P.head;
         const h = c.layer('fx-pulse', true);
-        for (let x = 22; x <= 42; x++) { const y = 1 + Math.round(Math.pow((x - 32) / 10, 2) * 2); h.px(x, y, p.A); h.px(x, y + 1, x % 3 ? p.B : p.C); }
+        for (let x = 22; x <= 41; x++) { const y = 1 + Math.round(Math.pow((x + 0.5 - 32) / 10, 2) * 2); h.px(x, y, p.A); h.px(x, y + 1, (x < 32 ? x : 63 - x) % 3 ? p.B : p.C); }
       } },
     { id: 'acc_wings', cat: 'acc', name: 'Ангельские крылья', en: 'Angel wings', style: 'fantasy', rarity: 'legendary', price: 4500, part: 'torso',
       pal: { W: '#f4f8ff', B: '#bcd0f5', E: '#7f9fdc' },
@@ -1738,15 +1757,15 @@
   const R = (a) => 'rotate(' + a + 'deg)';
   const DANCES = {
     six7: { dur: 0.6, frames: [
-      { larm: T(0, -7) + R(42), rarm: T(0, 3) + R(-42), all: T(0, 0), head: R(-4) },
-      { larm: T(0, -2) + R(42), rarm: T(0, -2) + R(-42), all: T(0, 1) },
-      { larm: T(0, 3) + R(42), rarm: T(0, -7) + R(-42), all: T(0, 0), head: R(4) },
-      { larm: T(0, -2) + R(42), rarm: T(0, -2) + R(-42), all: T(0, 1) },
+      { larm: R(70), rarm: R(-24), all: T(0, 0), head: R(-4) },
+      { larm: R(46), rarm: R(-46), all: T(0, 1) },
+      { larm: R(24), rarm: R(-70), all: T(0, 0), head: R(4) },
+      { larm: R(46), rarm: R(-46), all: T(0, 1) },
     ] },
     floss: { dur: 0.9, frames: [
-      { larm: T(8, 0) + R(18), rarm: T(8, 0) + R(18), torso: T(-2, 0), head: T(-2, 0), legl: T(-2, 0), legr: T(-2, 0) },
+      { larm: R(-52), rarm: T(-2, 0) + R(-40), torso: T(-2, 0), head: T(-2, 0), legl: T(-2, 0), legr: T(-2, 0) },
       { larm: T(0, 0), rarm: T(0, 0) },
-      { larm: T(-8, 0) + R(-18), rarm: T(-8, 0) + R(-18), torso: T(2, 0), head: T(2, 0), legl: T(2, 0), legr: T(2, 0) },
+      { larm: T(2, 0) + R(40), rarm: R(52), torso: T(2, 0), head: T(2, 0), legl: T(2, 0), legr: T(2, 0) },
       { larm: T(0, 0), rarm: T(0, 0) },
     ] },
     dab: { dur: 1.6, frames: [
@@ -1766,9 +1785,9 @@
       { legr: T(0, -5), all: T(0, -1), larm: R(25), rarm: R(25) },
     ] },
     shuffle: { dur: 0.8, frames: [
-      { legl: T(-3, 0) + R(18), legr: T(3, 0) + R(-18), larm: T(0, -3) + R(35), rarm: T(0, -3) + R(-35), all: T(1, 0) },
+      { legl: T(-3, 0) + R(18), legr: T(3, 0) + R(-18), larm: T(0, -1) + R(50), rarm: T(0, -1) + R(-50), all: T(1, 0) },
       { all: T(0, 1) },
-      { legl: T(-3, 0) + R(18), legr: T(3, 0) + R(-18), larm: T(0, -3) + R(35), rarm: T(0, -3) + R(-35), all: T(-1, 0) },
+      { legl: T(-3, 0) + R(18), legr: T(3, 0) + R(-18), larm: T(0, -1) + R(50), rarm: T(0, -1) + R(-50), all: T(-1, 0) },
       { all: T(0, 1) },
     ] },
     carlton: { dur: 1.0, frames: [
@@ -1780,9 +1799,9 @@
       { larm: R(75), rarm: R(-75) },
       { larm: R(155), rarm: R(-75) },
       { larm: R(155), rarm: R(-155) },
-      { larm: T(3, -5) + R(25), rarm: R(-155) },
-      { larm: T(3, -5) + R(25), rarm: T(-3, -5) + R(-25) },
-      { larm: T(3, -5) + R(25), rarm: T(-3, -5) + R(-25), torso: T(3, 0), legl: T(3, 0), legr: T(3, 0) },
+      { larm: R(-32), rarm: R(-155) },
+      { larm: R(-32), rarm: R(32) },
+      { larm: T(2, 0) + R(-32), rarm: T(2, 0) + R(32), torso: T(2, 0), legl: T(2, 0), legr: T(2, 0) },
       { all: T(0, -4) },
     ] },
     bounce: { dur: 0.6, frames: [
@@ -1790,8 +1809,8 @@
       { all: T(0, 0), head: R(-3) },
     ] },
     gangnam: { dur: 0.7, frames: [
-      { legl: T(0, -4), larm: T(6, -3) + R(-35), rarm: T(-6, -3) + R(35), all: T(0, -2) },
-      { legr: T(0, -4), larm: T(6, -3) + R(-35), rarm: T(-6, -3) + R(35), all: T(0, 0) },
+      { legl: T(0, -4), larm: T(2, -1) + R(-62), rarm: T(-2, -1) + R(62), all: T(0, -2) },
+      { legr: T(0, -4), larm: T(2, -1) + R(-62), rarm: T(-2, -1) + R(62), all: T(0, 0) },
     ] },
     moonwalk: { dur: 1.4, frames: [
       { all: T(6, 0), legl: T(0, -3) },
@@ -1822,18 +1841,18 @@
       { all: T(0, 0) },
     ] },
     lforehead: { dur: 1.2, frames: [
-      { larm: T(3, 0) + R(168), legl: T(0, -3) + R(22), all: T(0, -1) },
-      { larm: T(3, 0) + R(168), legr: T(0, -3) + R(-22), all: T(0, 0) },
+      { larm: T(2, 0) + R(170), legl: T(0, -3) + R(22), all: T(0, -1) },
+      { larm: T(2, 0) + R(170), legr: T(0, -3) + R(-22), all: T(0, 0) },
     ] },
     clap: { dur: 0.8, frames: [
-      { larm: R(150), rarm: R(-150), all: T(0, 0) },
-      { larm: T(4, 0) + R(172), rarm: T(-4, 0) + R(-172), all: T(0, -2) },
+      { larm: R(-30), rarm: R(30), all: T(0, 0) },
+      { larm: T(1, 0) + R(-72), rarm: T(-1, 0) + R(72), all: T(0, -2) },
     ] },
     wave: { dur: 1.0, frames: [
-      { larm: T(0, -4) + R(90) },
-      { larm: T(0, -2) + R(90), head: T(0, -3) },
-      { larm: T(0, 0) + R(90), rarm: T(0, -4) + R(-90), torso: T(0, -1) },
-      { rarm: T(0, -2) + R(-90) },
+      { larm: R(118) },
+      { larm: R(100), head: T(0, -2) },
+      { larm: R(85), rarm: R(-118), torso: T(0, -1) },
+      { rarm: R(-100) },
     ] },
     charleston: { dur: 0.8, frames: [
       { legl: T(0, -2) + R(32), rarm: R(-45), larm: R(10), all: T(0, -1) },
@@ -1910,10 +1929,10 @@
   const BASE = { hair: 'hair_short', top: 'top_tee', pants: 'pants_jeans', shoes: 'shoes_keds', acc: null, dance: null };
 
   const RARITY = {
-    base: { name: 'бесплатная', color: '#9aa0a8' },
-    common: { name: 'обычная', color: '#9aa0a8' },
-    rare: { name: 'редкая', color: '#3b82f6' },
-    legendary: { name: 'легендарная', color: '#f59e0b' },
+    base: { name: 'бесплатная', color: 'var(--hint, #7b808a)' },
+    common: { name: 'обычная', color: 'var(--hint, #7b808a)' },
+    rare: { name: 'редкая', color: 'var(--rar-rare, #3b82f6)' },
+    legendary: { name: 'легендарная', color: 'var(--rar-leg, #f59e0b)' },
   };
   const STYLES = { base: 'Базовый', sport: 'Спорт', classic: 'Классика', street: 'Уличный', fantasy: 'Фэнтези' };
 
@@ -1938,24 +1957,109 @@
       brow: fromHsl(hh, hs, Math.max(0.08, hl - 0.15)),
     };
     const c = new Canvas();
+    const palOf = (it, cat) => (it.pal ? (Number.isInteger(look.col && look.col[cat]) ? recolor(it.pal, look.col[cat]) : it.pal) : {});
+    // головной убор прячет волосы выше своего нижнего края
+    const accIt = byId[look.eq && look.eq.acc];
+    const hat = accIt && accIt.cat === 'acc' && accIt.hat !== undefined ? hatClip(accIt, k, palOf(accIt, 'acc')) : null;
+    // длинный верх (тренч, кардиган) прячет края широких юбок и штанов, которые торчали бы из-под него по бокам
+    const topIt = byId[look.eq && look.eq.top];
+    const coat = topIt && topIt.cat === 'top' && topIt.long ? coatClip(topIt, k, palOf(topIt, 'top')) : null;
     // волосы за спиной — до тела
     const hairIt = byId[look.eq && look.eq.hair];
-    if (hairIt && hairIt.back) { c.cur = P.head; hairIt.back(c, k, hairIt.pal ? (Number.isInteger(look.col && look.col.hair) ? recolor(hairIt.pal, look.col.hair) : hairIt.pal) : {}); }
+    if (hairIt && hairIt.back) { c.cur = P.head; c.clip = hat; hairIt.back(c, k, palOf(hairIt, 'hair')); c.clip = null; }
     drawBody(c, k);
     // высокая обувь (сапоги) надевается поверх штанин
-    const shoe = byId[look.eq && look.eq.shoes];
-    const order = shoe && shoe.tall ? ['pants', 'shoes', 'top', 'hair', 'acc'] : LAYER_ORDER;
+    // (кроме широких штанов и клёша — они свободно лежат поверх сапог)
+    const shoe = byId[look.eq && look.eq.shoes], pantsIt = byId[look.eq && look.eq.pants];
+    const order = shoe && shoe.tall && !(pantsIt && pantsIt.over) ? ['pants', 'shoes', 'top', 'hair', 'acc'] : LAYER_ORDER;
     order.forEach((cat) => {
       const it = byId[look.eq && look.eq[cat]];
       if (!it || it.cat !== cat) return;
-      const ci = look.col ? look.col[cat] : null;
-      const p = it.pal ? (Number.isInteger(ci) ? recolor(it.pal, ci) : it.pal) : {};
+      const p = palOf(it, cat);
       c.cur = it.part ? P[it.part] : cat === 'hair' ? P.head : P.torso;
-      it.draw(c, k, p);
+      if (cat === 'hair') {
+        c.clip = hat; it.draw(c, k, p); c.clip = null;
+        k.top = hairTop(c);
+      } else if (cat === 'pants' && coat) {
+        c.clip = coat; it.draw(c, k, p); c.clip = null;
+      } else if (it.sits) {
+        // корона, нимб, цыплёнок сидят на причёске, а не тонут в ней
+        if (!k.top) k.top = hairTop(c);
+        drawShifted(c, it, k, p, (it.sits === 'top' ? k.top.abs - 3 : k.top.wide - 4));
+      } else it.draw(c, k, p);
     });
     if (HAIR_LEGEND[look.hc]) legendHair(c, k, HAIR_LEGEND[look.hc]);
     c.syncOwn();
     return c;
+  }
+
+  // Высота причёски над головой: abs — самый верхний пиксель (пучок, шипы),
+  // wide — верх широкой части (без узких пучков и гребней). Считается по середине головы.
+  function hairTop(c) {
+    let abs = null, wide = null;
+    for (let y = -OY; y < 12 && wide === null; y++) {
+      let n = 0;
+      for (let x = 22; x <= 41; x++) if (c.m[IX(x, y)]) n++;
+      if (n && abs === null) abs = y;
+      if (n >= 14) wide = y;
+    }
+    if (abs === null) abs = 7;
+    if (wide === null) wide = 7;
+    return { abs, wide };
+  }
+
+  // Какие пиксели волос спрятать под головным убором. it.hat — строка, где убор шире всего:
+  // выше неё волос не видно, по бокам от убора волосы начинаются чуть ниже (скос).
+  function hatClip(it, k, p) {
+    const tmp = new Canvas();
+    it.draw(tmp, k, p);
+    const row = it.hat;
+    let x0 = N, x1 = -1;
+    for (let y = row - 3; y < row; y++) {
+      for (let x = 0; x < N; x++) if (tmp.m[IX(x, y)]) { if (x < x0) x0 = x; if (x > x1) x1 = x; }
+    }
+    return (x, y) => y < row + Math.min(6, Math.round(Math.max(0, x0 - x, x - x1) * 0.7));
+  }
+
+  // Длинный верх: в строках, которые он закрывает, штаны и юбки видны только в пределах его ширины.
+  function coatClip(it, k, p) {
+    const tmp = new Canvas();
+    tmp.cur = P.torso;
+    it.draw(tmp, k, p);
+    const ext = {};
+    for (let y = k.G.ty1 - 2; y < N; y++) {
+      let x0 = N, x1 = -1;
+      for (let x = 0; x < N; x++) {
+        const i = IX(x, y);
+        if (tmp.m[i] && tmp.part[i] === P.torso) { if (x < x0) x0 = x; if (x > x1) x1 = x; }
+      }
+      if (x1 >= 0) ext[y] = [x0, x1];
+    }
+    return (x, y) => !!ext[y] && (x < ext[y][0] || x > ext[y][1]);
+  }
+
+  // Нарисовать вещь на отдельном холсте и перенести на основной со сдвигом по вертикали.
+  function drawShifted(c, it, k, p, dy) {
+    const tmp = new Canvas();
+    tmp.cur = c.cur;
+    it.draw(tmp, k, p);
+    let minY = N;
+    [tmp].concat(tmp.fx.map((f) => f.c)).forEach((src) => {
+      for (let i = 0; i < N * NH; i++) if (src.m[i]) { minY = Math.min(minY, YI(i)); break; }
+    });
+    dy = Math.max(dy, -OY - minY);
+    const put = (src, dst) => {
+      for (let i = 0; i < N * NH; i++) {
+        if (!src.m[i]) continue;
+        const x = i % N, y = YI(i) + dy;
+        dst.cur = src.part[i];
+        dst.set(x, y, src.m[i], src.t[i]);
+        if (src.raw[i]) dst.px(x, y, src.raw[i]);
+      }
+    };
+    put(tmp, c);
+    tmp.fx.forEach((f) => { const l = c.layer(f.cls, f.glow, f.back); put(f.c, l); });
+    c.cur = tmp.cur;
   }
 
   // Перелив для легендарного цвета волос: градиент по диагонали, второй градиент на слое,
@@ -2042,9 +2146,12 @@
   // скрытые под другими частями (они проявляются, когда в танце часть сдвигается).
   // Если видимый пиксель части лежит поверх части, которая рисуется позже (например,
   // прядь волос поверх руки), он попадает в «передний» слой этой части.
+  // Исключение — бёдра под ногами: скрытые пиксели туловища уходят в «нижний» слой (рисуется
+  // раньше ног), чтобы поднятая в танце нога уходила под одежду, а не ложилась поверх неё.
   function layered(c, img) {
     const normal = PARTS.map(() => new Array(N * NH).fill(null));
     const front = PARTS.map(() => new Array(N * NH).fill(null));
+    const under = PARTS.map(() => new Array(N * NH).fill(null));
     const color = (o, i) => (o.raw[i] ? o.raw[i] : o.m[i] ? o.m[i].t[o.t[i]] : null);
     for (let i = 0; i < N * NH; i++) {
       const top = img.c[i];
@@ -2053,12 +2160,13 @@
       let isFront = false;
       for (let p = 0; p < PARTS.length; p++) {
         if (p === q || !c.own[p].m[i]) continue;
+        if (p === P.torso && (q === P.legl || q === P.legr)) { under[p][i] = color(c.own[p], i); continue; }
         if (ORD[p] > ORD[q]) isFront = true;
         normal[p][i] = color(c.own[p], i); // скрытый пиксель другой части
       }
       (isFront ? front : normal)[q][i] = top;
     }
-    return { normal, front };
+    return { normal, front, under };
   }
   function rectsOf(col) {
     let out = '';
@@ -2096,13 +2204,45 @@
     const lay = layered(c, img);
     const fx = c.fx.map((l) => ({ cls: l.cls, glow: l.glow, back: l.back, img: paint(l.c, false) }));
     const parts = PARTS.map((name, i) => ({
-      name, main: rectsOf(lay.normal[i]), front: rectsOf(lay.front[i]),
+      name, main: rectsOf(lay.normal[i]), front: rectsOf(lay.front[i]), under: rectsOf(lay.under[i]),
       fx: fx.map((l) => ({ cls: l.cls, glow: l.glow, back: l.back, html: rects(l.img, i) })),
     }));
-    r = { parts, piv: pivots(geo(look.g)), glow: fx.some((l) => l.glow) };
+    // верхняя строка рисунка (с эффектами): у высоких причёсок и шляп она выше нуля
+    let top = N;
+    [img].concat(fx.map((l) => l.img)).forEach((im) => {
+      for (let i = 0; i < N * NH; i++) if (im.c[i]) { top = Math.min(top, YI(i)); break; }
+    });
+    r = { parts, piv: pivots(geo(look.g)), glow: fx.some((l) => l.glow), top };
     if (cache.size > 300) cache.clear();
     cache.set(key, r);
     return r;
+  }
+
+  // Сколько строк над картинкой 64×64 занимает персонаж (высокая причёска, шляпа, прыжок в танце).
+  // Нужно там, где персонаж стоит в рамке с обрезкой: рамка оставляет сверху столько места.
+  function headroom(look) {
+    let rows = Math.max(0, -build(look).top);
+    const d = look.eq && look.eq.dance && byId[look.eq.dance] ? DANCES[byId[look.eq.dance].dance] : null;
+    if (d) {
+      let jump = 0;
+      d.frames.forEach((f) => {
+        let up = 0;
+        ['all', 'head'].forEach((part) => {
+          const m = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/.exec(f[part] || '');
+          if (m) up += Math.max(0, -Number(m[2]));
+        });
+        jump = Math.max(jump, up);
+      });
+      if (rows || jump > 3) rows += jump + 1;
+    }
+    return rows;
+  }
+
+  // Атрибут style с местом над картинкой (в пикселях экрана) для рамки размера size:
+  // CSS рамки сам решает, сколько из этого у неё уже есть (переменная --room).
+  function room(look, size) {
+    const px = Math.round(headroom(look) * size / N);
+    return px ? ' style="--room:' + px + 'px"' : '';
   }
 
   let svgId = 0;
@@ -2115,6 +2255,11 @@
     if (dance) ensureDanceCss();
     let body = '';
     const open = (name) => { const [ox, oy] = r.piv[name]; return '<g class="pp pp-' + name + '" style="transform-origin:' + ox + 'px ' + oy + 'px">'; };
+    // нижние слои (бёдра под ногами) — раньше всех частей
+    ORDER.forEach((name) => {
+      const part = r.parts[PARTS.indexOf(name)];
+      if (part.under) body += open(name) + part.under + '</g>';
+    });
     ORDER.forEach((name) => {
       const part = r.parts[PARTS.indexOf(name)];
       const [ox, oy] = r.piv[name];
@@ -2147,8 +2292,10 @@
     ITEMS, byId, CATS, BASE, RARITY, STYLES,
     itemName, colorName, colorPrice,
     svg,
-    compose,
+    compose, headroom, room,
     DANCES,
     recolor,
+    // служебное — для автопроверок (tests/char-audit.js): холст, размеры, части тела
+    _dbg: { Canvas, N, OY, P, PARTS, ORDER, geo, pivots, paint, layered },
   };
 })(window.PF);

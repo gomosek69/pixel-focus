@@ -44,7 +44,7 @@
     accent: (v) => v === 'auto' || (Number.isInteger(v) && v >= 0 && v < 16),
     bg: (v) => Number.isInteger(v) && v >= 0 && v < 16,
     chart: (v) => ['bars', 'percent', 'pie', 'lines', 'cumulative'].includes(v),
-    glass: (v) => ['liquid', 'frosted'].includes(v),
+    style: (v) => PF.STYLES.some((x) => x.id === v),      // стиль интерфейса (список — в util.js)
     name: (v) => typeof v === 'string' && v.length <= 30, // как обращаться к пользователю
     asked: (v) => v === true,                             // уже спрашивали имя
     wunit: (v) => v === 'kg' || v === 'lb',               // единицы веса
@@ -52,12 +52,14 @@
     wgoal: (v) => v === 0 || (Number.isFinite(v) && v >= 20 && v <= 400), // цель по весу, кг (0 — нет)
   };
   function defaultPrefs() {
-    return { lang: 'auto', theme: 'auto', accent: 'auto', bg: 0, chart: 'bars', glass: 'liquid', name: '', asked: false, wunit: 'kg', wgoal: 0, datefmt: 'eu' };
+    return { lang: 'auto', theme: 'auto', accent: 'auto', bg: 0, chart: 'bars', style: 'glass', name: '', asked: false, wunit: 'kg', wgoal: 0, datefmt: 'eu' };
   }
   function sanitizePrefs(pr) {
     const out = defaultPrefs();
     if (pr && typeof pr === 'object') {
       Object.keys(PREF_RULES).forEach((k) => { if (PREF_RULES[k](pr[k])) out[k] = pr[k]; });
+      // старая настройка «стекло» (до большой переделки оформления)
+      if (pr.style === undefined && pr.glass === 'frosted') out.style = 'frosted';
     }
     return out;
   }
@@ -563,7 +565,7 @@
       emit('lang');
     } else if (key === 'datefmt') {
       emit('lang'); // подписи с датами перерисуются
-    } else if (key === 'theme' || key === 'accent' || key === 'bg' || key === 'glass') {
+    } else if (key === 'theme' || key === 'accent' || key === 'bg' || key === 'style') {
       emit('theme');
     }
     changed();

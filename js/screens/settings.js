@@ -98,10 +98,16 @@
       '<div class="card pad theme-card">' +
       '  <div><div class="set-label">' + t('Тема') + '</div><div class="seg seg-main" data-seg="theme">' +
       themeBtn('auto', t('Как в Telegram')) + themeBtn('light', t('Светлая')) + themeBtn('dark', t('Тёмная')) + '</div></div>' +
-      '  <div><div class="set-label">' + t('Стиль интерфейса') + '</div><div class="seg seg-main" data-seg="glass">' +
-      ['liquid', 'frosted'].map((g) =>
-        '<button class="seg-btn' + ((pr.glass || 'liquid') === g ? ' on' : '') + '" data-glassopt="' + g + '">' +
-        (g === 'liquid' ? 'Liquid Glass' : t('Матовое стекло')) + '</button>').join('') + '</div></div>' +
+      '  <div><div class="set-label">' + t('Стиль интерфейса') + '</div><div class="style-grid">' +
+      PF.STYLES.map((st) => {
+        // маленький образец: фон, карточка, точка основного цвета и буквы шрифтом стиля
+        const v = st.pv, css = '--pv-bg:' + v.bg + ';--pv-card:' + v.card + ';--pv-ink:' + v.ink + ';--pv-acc:' + v.acc + ';--pv-r:' + v.r +
+          (v.font ? ";--pv-font:'" + v.font + "'" : '') + (v.edge ? ';--pv-edge:' + v.edge : '') + (v.bw ? ';--pv-bw:' + v.bw : '') +
+          (v.dot ? ';--pv-dot:' + v.dot : '') + (v.shadow ? ';--pv-shadow:' + v.shadow : '');
+        return '<button class="style-tile' + ((pr.style || 'glass') === st.id ? ' on' : '') + '" data-styleopt="' + st.id + '" style="' + css + '">' +
+          '<span class="st-pv"><span class="st-card"><i></i><b>Aa</b></span></span><span class="st-name">' + t(st.name) + '</span></button>';
+      }).join('') +
+      '</div></div>' +
       '  <div><div class="set-label">' + t('Основной цвет') + '</div><div class="accents">' + accents + '</div></div>' +
       '  <div><div class="set-label">' + t('Фон приложения') + '</div><div class="bgs">' + bgs + '</div></div>' +
       '</div>';
@@ -110,8 +116,8 @@
   async function onClick(e) {
     const th = e.target.closest('[data-theme]');
     if (th && th.classList.contains('seg-btn')) { store.setPref('theme', th.dataset.theme); ui.haptic('light'); return; }
-    const gl = e.target.closest('[data-glassopt]');
-    if (gl) { store.setPref('glass', gl.dataset.glassopt); ui.haptic('light'); return; }
+    const so = e.target.closest('[data-styleopt]');
+    if (so) { store.setPref('style', so.dataset.styleopt); ui.haptic('light'); return; }
     const ac = e.target.closest('.accent-sw[data-accent]');
     if (ac) { store.setPref('accent', ac.dataset.accent === 'auto' ? 'auto' : Number(ac.dataset.accent)); ui.haptic('light'); return; }
     const bgb = e.target.closest('.bg-tile[data-bg]');

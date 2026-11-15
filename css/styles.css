@@ -1,0 +1,421 @@
+/* Pixel Focus — стили интерфейса (Настройки → Оформление → Стиль).
+   Стиль включается атрибутом data-style на <html>. Светлый и тёмный вариант — по data-scheme.
+   «Жидкое стекло» и «Матовое стекло» описаны в css/style.css; здесь — остальные.
+
+   Как устроен стиль:
+   1) переменные на :root — цвета, скругления (--rs), шрифты, параметры «поверхности» (--g-*);
+   2) переменные на самих поверхностях (через :where(...) — без веса в специфичности),
+      когда тень или рамка зависят от состояния элемента;
+   3) немного точечных правил для деталей (нижняя панель, кнопки, поля ввода). */
+
+/* =====================================================================
+   ПИКСЕЛЬ — как меню старой игры: жёсткие рамки со «срезанными» углами,
+   плоские цвета, пиксельный шрифт, кнопки «вдавливаются».
+   ===================================================================== */
+
+:root[data-style="pixel"] {
+  --rs: 0; --r-pill: 0px; --r-round: 0px; --bw: 0px;
+  --px: 3px;                       /* размер «пикселя» рамки */
+  --font: 'Tiny5', ui-monospace, Menlo, Consolas, monospace;
+  --font-head: var(--font); --font-num: var(--font);
+  --head-ls: 0.02em;
+  --bg: #ece3cf; --card: #fffaf0; --text: #2b2540; --hint: #7d7590;
+  --line: rgba(43, 37, 64, 0.20); --soft: rgba(43, 37, 64, 0.08);
+  --edge: #2b2540;                 /* цвет рамки */
+  --shade: #cbbf9f;                /* цвет жёсткой тени */
+  --g-bg: var(--card); --g-sheen: none; --g-border: transparent; --g-filter: none; --g-strong: var(--card);
+  --accent: #5b6ee1; --primary: var(--accent); --primary-text: #fff;
+  --spring: steps(3, end); --ease-out: steps(5, end);
+  font-synthesis: none;            /* у пиксельного шрифта нет жирного начертания — не «размазывать» */
+  letter-spacing: 0.02em;
+}
+:root[data-style="pixel"][data-scheme="dark"] {
+  --bg: #15152e; --card: #262c6b; --text: #f4f4ff; --hint: #a9aee0;
+  --line: rgba(255, 255, 255, 0.22); --soft: rgba(255, 255, 255, 0.10);
+  --edge: #eef0ff; --shade: #07071a;
+  --g-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 45%, rgba(0, 0, 0, 0.22));
+  --g-strong: #20255c;
+  --accent: #6f8cff;
+}
+
+/* рамка из четырёх теней: углы получаются «срезанными на пиксель»; ниже — жёсткая тень */
+:root[data-style="pixel"] :where(.card, .act-btn, .balance, .item, .cat-tab, .ct-btn, .nav-btn, .seg, .empty,
+  .btn, .btn-small, .chip-btn, .quick, .toast, .icon-btn, .tip, .act-add, .step, .icon-opt, .mood-opt, .bg-tile) {
+  --g-shadow:
+    0 calc(-1 * var(--px)) 0 0 var(--edge), 0 var(--px) 0 0 var(--edge),
+    calc(-1 * var(--px)) 0 0 0 var(--edge), var(--px) 0 0 0 var(--edge),
+    0 calc(2 * var(--px)) 0 0 var(--shade), calc(-1 * var(--px)) var(--px) 0 0 var(--shade), var(--px) var(--px) 0 0 var(--shade);
+  box-shadow: var(--g-shadow);
+}
+:root[data-style="pixel"] :where(.btn, .icon-btn, .act-add, .step, .icon-opt, .mood-opt, .bg-tile, .tip) { border: 0; }
+:root[data-style="pixel"] .act-add { background: transparent; --edge: var(--hint); --shade: transparent; }
+:root[data-style="pixel"] .toast { background: var(--card); color: var(--text); }
+
+/* нажатие: кнопка опускается на «пиксель», тень пропадает */
+:root[data-style="pixel"] button { transition: none; }
+:root[data-style="pixel"] :is(button, .me-card):active:not(:disabled) { transform: translateY(var(--px)); --shade: transparent; }
+
+/* состояния: выбранное — цветная рамка */
+:root[data-style="pixel"] .act-btn.on { --edge: var(--c); }
+:root[data-style="pixel"] :is(.item.on, .bg-tile.on, .mood-opt.on) { --edge: var(--primary); }
+:root[data-style="pixel"] .item.r-rare { box-shadow: var(--g-shadow), inset 0 calc(-1 * var(--px)) 0 #3b82f6; }
+:root[data-style="pixel"] .item.r-legendary { box-shadow: var(--g-shadow), inset 0 calc(-1 * var(--px)) 0 #f59e0b; }
+:root[data-style="pixel"] :is(.cat-tab.on, .ct-btn.on, .style-opt.on, .icon-opt.on) { background: var(--primary); color: var(--primary-text); }
+:root[data-style="pixel"] .cat-tab.on, :root[data-style="pixel"] .ct-btn.on { box-shadow: var(--g-shadow); }
+
+/* кнопки */
+:root[data-style="pixel"] .btn { font-weight: 700; letter-spacing: 0.02em; }
+:root[data-style="pixel"] .btn-ghost { background: var(--card); }
+:root[data-style="pixel"] .btn-danger-ghost { background: var(--card); --edge: var(--danger); }
+:root[data-style="pixel"] :is(.btn-primary, .btn-stop, .btn-danger, .tr-color, .quick-add, .me-plus) {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0 var(--px), transparent var(--px) calc(100% - var(--px)), rgba(0, 0, 0, 0.22) calc(100% - var(--px)));
+}
+:root[data-style="pixel"] :is(.btn-stop, .act-btn.on .act-ic, .task-act.stop, .rec .bar, .lg i, .tot-name i, .tip-row i, .chip i)::after { display: none; }
+:root[data-style="pixel"] :is(.act-btn.on .act-ic, .btn-stop, .task-act.stop, .rec .bar, .lg i, .tot-name i, .tip-row i, .chip i, .chart svg, .current:not(.idle)::before) { animation: none; }
+
+/* переключатели */
+:root[data-style="pixel"] .seg { background: var(--card); padding: 3px; gap: 3px; }
+:root[data-style="pixel"] .seg-ind {
+  box-shadow: inset 0 calc(-1 * var(--px)) 0 rgba(0, 0, 0, 0.25), inset 0 var(--px) 0 rgba(255, 255, 255, 0.25);
+  transition: transform 0.2s steps(4, end), width 0.2s steps(4, end), opacity 0.1s;
+}
+
+/* ленты кнопок: место под рамку и тень */
+:root[data-style="pixel"] :is(.cat-tabs, .chart-types) { gap: 12px; padding-top: 5px; padding-bottom: 9px; }
+:root[data-style="pixel"] :is(.chips, .style-pick, .quick-dates, .feel-pick, .act-chips) { gap: 12px; }
+:root[data-style="pixel"] :is(.acts, .acts-custom, .items, .me-grid, .bgs, .icon-pick, .mood-pick) { gap: 14px; }
+:root[data-style="pixel"] .acts-custom { margin-top: 4px; }
+:root[data-style="pixel"] .btn-col { gap: 14px; }
+:root[data-style="pixel"] .day { margin-bottom: 20px; }
+
+/* нижняя панель: прижата к краю */
+:root[data-style="pixel"] .tabbar {
+  left: 0; right: 0; bottom: 0; max-width: none; margin: 0; border: 0; border-radius: 0;
+  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); padding: 0 0 env(safe-area-inset-bottom);
+  background: var(--card); box-shadow: 0 calc(-1 * var(--px)) 0 0 var(--edge);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+:root[data-style="pixel"] .tab-ind {
+  top: 0; bottom: env(safe-area-inset-bottom); border-radius: 0;
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
+  box-shadow: inset 0 var(--px) 0 0 var(--primary);
+  transition: transform 0.2s steps(4, end), width 0.2s steps(4, end);
+}
+:root[data-style="pixel"] .tab { font-size: 0.75rem; }
+:root[data-style="pixel"] .top-right { gap: 12px; }
+:root[data-style="pixel"] .top h1 { font-size: 2rem; }
+:root[data-style="pixel"] .cur-time { font-size: 3.5rem; letter-spacing: 0.03em; margin: 2px 0 8px; }
+:root[data-style="pixel"] .tab.on .ic { transform: none; }
+:root[data-style="pixel"] #screen { padding-bottom: calc(var(--tabbar-h) + 28px + env(safe-area-inset-bottom)); }
+
+/* окна снизу, поля, мелочи */
+:root[data-style="pixel"] .sheet {
+  border: 0; background: var(--g-sheen), var(--g-strong); box-shadow: 0 calc(-1 * var(--px)) 0 0 var(--edge);
+  -webkit-backdrop-filter: none; backdrop-filter: none; transition: transform 0.25s steps(6, end);
+}
+:root[data-style="pixel"] .sheet-back.open { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(0, 0, 0, 0.5); }
+:root[data-style="pixel"] :is(.field input, textarea.code) { border: var(--px) solid var(--edge); background: var(--card); }
+:root[data-style="pixel"] .check { border: var(--px) solid var(--edge); }
+:root[data-style="pixel"] :is(.swatch, .cswatch, .accent-sw) { box-shadow: 0 0 0 2px var(--edge); }
+:root[data-style="pixel"] :is(.swatch.on, .cswatch.on, .accent-sw.on) { box-shadow: 0 0 0 2px var(--card), 0 0 0 5px var(--primary); transform: none; }
+:root[data-style="pixel"] .ic { stroke-linecap: square; stroke-linejoin: miter; }
+:root[data-style="pixel"] .lock { box-shadow: 0 0 0 2px var(--edge); }
+:root[data-style="pixel"] .badge { background: var(--primary); color: var(--primary-text); }
+:root[data-style="pixel"] .char-stage {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 14%, var(--card)) 0 74%, var(--edge) 74% calc(74% + var(--px)), color-mix(in srgb, var(--primary) 30%, var(--card)) calc(74% + var(--px)));
+}
+:root[data-style="pixel"] .try-pic { background: color-mix(in srgb, var(--primary) 14%, var(--card)); box-shadow: inset 0 calc(-1 * var(--px)) 0 var(--edge); }
+:root[data-style="pixel"] .splash-bar { box-shadow: 0 0 0 var(--px) var(--edge); height: 8px; }
+
+/* фон: мелкая «шахматка» вместо цветных пятен */
+:root[data-style="pixel"] #ambient {
+  inset: 0; animation: none;
+  background: repeating-conic-gradient(var(--soft) 0% 25%, transparent 0% 50%) 0 0 / 12px 12px;
+  opacity: 0.55;
+}
+:root[data-style="pixel"] .splash::before { display: none; }
+
+/* =====================================================================
+   ПАСТЕЛЬ — мягкие цвета, крупные скругления, «наклейки» с цветной
+   нижней тенью, округлый шрифт, кнопки-конфеты.
+   ===================================================================== */
+
+:root[data-style="pastel"] {
+  --rs: 1.3; --bw: 2px;
+  --font: 'Nunito', ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-head: var(--font); --font-num: var(--font);
+  --head-w: 900; --head-ls: -0.01em;
+  --bg: #fdf0f5; --card: #ffffff; --text: #54465f; --hint: #8f7fa2;
+  --line: rgba(160, 120, 170, 0.20); --soft: rgba(200, 150, 200, 0.14);
+  --accent: #ee62a8; --primary: var(--accent); --primary-text: #fff;
+  --g-bg: var(--card); --g-sheen: none; --g-filter: none; --g-strong: var(--card);
+  --g-border: color-mix(in srgb, var(--primary) 26%, var(--card));
+  --g-shadow: 0 5px 0 0 color-mix(in srgb, var(--primary) 20%, var(--card)), 0 14px 22px -10px color-mix(in srgb, var(--primary) 34%, transparent);
+  font-weight: 600;
+}
+:root[data-style="pastel"][data-scheme="dark"] {
+  --bg: #292132; --card: #392e46; --text: #f9efff; --hint: #b7a6ca;
+  --line: rgba(255, 255, 255, 0.12); --soft: rgba(255, 255, 255, 0.07);
+  --g-border: color-mix(in srgb, var(--primary) 36%, var(--card));
+  --g-shadow: 0 5px 0 0 rgba(0, 0, 0, 0.24), 0 14px 22px -10px rgba(0, 0, 0, 0.45);
+}
+:root[data-style="pastel"] body { font-weight: 600; }
+:root[data-style="pastel"] #ambient {
+  inset: 0; animation: none;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cpath d='M18 26c0-3 4-3 4 0c0-3 4-3 4 0c0 3-4 5-4 7c0-2-4-4-4-7z' fill='%23f9a8d4' fill-opacity='.55'/%3E%3Cpath d='M96 14l1.6 4.4l4.4 1.6l-4.4 1.6l-1.6 4.4l-1.6-4.4l-4.4-1.6l4.4-1.6z' fill='%23c4b5fd' fill-opacity='.6'/%3E%3Ccircle cx='62' cy='78' r='2.6' fill='%23fcd34d' fill-opacity='.55'/%3E%3Ccircle cx='118' cy='104' r='2.2' fill='%236ee7b7' fill-opacity='.55'/%3E%3Cpath d='M26 104l1.3 3.4l3.4 1.3l-3.4 1.3l-1.3 3.4l-1.3-3.4l-3.4-1.3l3.4-1.3z' fill='%23f9a8d4' fill-opacity='.6'/%3E%3C/svg%3E") 0 0 / 140px 140px,
+    radial-gradient(70% 40% at 10% 0%, color-mix(in srgb, var(--primary) 24%, transparent), transparent 70%),
+    radial-gradient(60% 40% at 100% 35%, rgba(167, 139, 250, 0.22), transparent 70%),
+    radial-gradient(70% 40% at 40% 100%, rgba(110, 231, 183, 0.20), transparent 70%);
+}
+/* кнопки-конфеты: своя нижняя «грань», при нажатии опускаются */
+:root[data-style="pastel"] .btn { border-radius: var(--r-pill); font-weight: 800; }
+:root[data-style="pastel"] :is(.btn-primary, .btn-stop, .btn-danger, .tr-color, .quick-add) {
+  --btn: var(--primary); background: var(--btn);
+  box-shadow: 0 4px 0 0 color-mix(in srgb, var(--btn) 72%, #3b1d33), 0 10px 18px -8px color-mix(in srgb, var(--btn) 60%, transparent);
+}
+:root[data-style="pastel"] :is(.btn-stop, .tr-color) { --btn: var(--c); }
+:root[data-style="pastel"] .btn-danger { --btn: var(--danger); }
+:root[data-style="pastel"] :is(.btn-primary, .btn-stop, .btn-danger, .tr-color, .quick-add):active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 0 color-mix(in srgb, var(--btn) 72%, #3b1d33);
+}
+:root[data-style="pastel"] .seg { background: color-mix(in srgb, var(--primary) 9%, var(--card)); padding: 5px; }
+:root[data-style="pastel"] .seg-ind { box-shadow: 0 3px 0 0 color-mix(in srgb, var(--primary) 70%, #3b1d33); }
+:root[data-style="pastel"] .tab-ind { background: color-mix(in srgb, var(--primary) 20%, transparent); box-shadow: none; }
+:root[data-style="pastel"] .act-btn.on { --g-border: var(--c); border-color: var(--c); }
+:root[data-style="pastel"] :is(.field input, textarea.code) { border: 2px solid var(--g-border); background: var(--card); }
+:root[data-style="pastel"] .check { border-color: color-mix(in srgb, var(--primary) 55%, var(--card)); }
+:root[data-style="pastel"] .sheet { border-width: 2px; background: var(--card); -webkit-backdrop-filter: none; backdrop-filter: none; }
+:root[data-style="pastel"] :is(.cat-tab.on, .ct-btn.on) { box-shadow: 0 4px 0 0 color-mix(in srgb, var(--primary) 70%, #3b1d33); border-color: transparent; }
+:root[data-style="pastel"] .char-stage {
+  background:
+    radial-gradient(ellipse 24% 4% at 50% 93%, rgba(84, 70, 95, 0.18), transparent),
+    radial-gradient(70% 70% at 50% 40%, color-mix(in srgb, var(--primary) 20%, var(--card)), var(--card) 75%);
+}
+
+/* =====================================================================
+   НЕОН — тёмный киберпанк: светящиеся рамки, сетка на фоне, технический
+   шрифт в заголовках. Всегда тёмный.
+   ===================================================================== */
+
+:root[data-style="neon"] {
+  color-scheme: dark;
+  --rs: 0.55;
+  --font-head: 'Tektur', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; --font-num: var(--font-head);
+  --head-w: 700; --head-ls: 0.05em; --head-tt: uppercase;
+  --bg: #06060f; --card: #101024; --text: #e9f3ff; --hint: #7f8fb6;
+  --line: rgba(120, 160, 255, 0.18); --soft: rgba(120, 160, 255, 0.10);
+  --act-work: #4da3ff; --act-study: #ff8a3d; --act-rest: #2ee6a6;
+  --accent: #22e5ff; --primary: var(--accent); --primary-text: #04121a;
+  --neon2: #ff2bd6;
+  --g-bg: rgba(14, 14, 36, 0.72);
+  --g-sheen: linear-gradient(135deg, color-mix(in srgb, var(--primary) 12%, transparent), transparent 45%, color-mix(in srgb, var(--neon2) 10%, transparent));
+  --g-border: color-mix(in srgb, var(--primary) 55%, transparent);
+  --g-filter: blur(14px) saturate(160%);
+  --g-shadow: 0 0 18px -3px color-mix(in srgb, var(--primary) 50%, transparent), inset 0 0 20px -8px color-mix(in srgb, var(--primary) 45%, transparent);
+  --g-strong: rgba(10, 10, 28, 0.94);
+}
+@supports (color: hsl(from red h s l)) {
+  :root[data-style="neon"] { --neon2: hsl(from var(--primary) calc(h + 125) 100% 60%); }
+}
+:root[data-style="neon"] #ambient {
+  inset: 0; animation: none;
+  background:
+    linear-gradient(color-mix(in srgb, var(--primary) 9%, transparent) 1px, transparent 1px) 0 0 / 100% 32px,
+    linear-gradient(90deg, color-mix(in srgb, var(--primary) 9%, transparent) 1px, transparent 1px) 0 0 / 32px 100%,
+    radial-gradient(55% 35% at 5% 0%, color-mix(in srgb, var(--primary) 30%, transparent), transparent 70%),
+    radial-gradient(55% 40% at 100% 70%, color-mix(in srgb, var(--neon2) 26%, transparent), transparent 70%);
+}
+:root[data-style="neon"] .top h1 { text-shadow: 0 0 16px color-mix(in srgb, var(--primary) 80%, transparent); font-size: 1.6rem; }
+:root[data-style="neon"] .cur-time { color: #fff; text-shadow: 0 0 18px var(--c), 0 0 2px var(--c); letter-spacing: 0.04em; }
+:root[data-style="neon"] .btn { text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.875rem; font-weight: 700; }
+:root[data-style="neon"] .btn-primary {
+  background: linear-gradient(90deg, var(--primary), var(--neon2)); color: #070714;
+  box-shadow: 0 0 20px -2px color-mix(in srgb, var(--primary) 70%, transparent);
+}
+:root[data-style="neon"] :is(.btn-stop, .tr-color) { box-shadow: 0 0 22px -2px var(--c); color: #070714; }
+:root[data-style="neon"] .act-btn.on {
+  box-shadow: 0 0 22px -3px var(--c), inset 0 0 24px -8px var(--c);
+}
+:root[data-style="neon"] .act-ic { border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); }
+:root[data-style="neon"] .seg-ind { background: linear-gradient(90deg, var(--primary), var(--neon2)); box-shadow: 0 0 16px -2px color-mix(in srgb, var(--primary) 70%, transparent); }
+:root[data-style="neon"] :is(.seg .seg-btn.on, .cat-tab.on, .ct-btn.on, .style-opt.on) { color: #070714; }
+:root[data-style="neon"] :is(.cat-tab.on, .ct-btn.on, .style-opt.on) { background: linear-gradient(90deg, var(--primary), var(--neon2)); border-color: transparent; }
+:root[data-style="neon"] .tab.on { text-shadow: 0 0 10px var(--primary); }
+:root[data-style="neon"] .tab.on .ic { filter: drop-shadow(0 0 5px var(--primary)); }
+:root[data-style="neon"] .tab-ind {
+  background: linear-gradient(180deg, transparent 55%, color-mix(in srgb, var(--primary) 22%, transparent));
+  box-shadow: inset 0 -2px 0 var(--primary);
+}
+:root[data-style="neon"] .icon-btn { background: var(--g-bg); border: 1px solid var(--g-border); box-shadow: var(--g-shadow); }
+:root[data-style="neon"] :is(.field input, textarea.code) { background: rgba(0, 0, 0, 0.35); border-color: var(--g-border); }
+:root[data-style="neon"] .sheet { box-shadow: 0 -1px 0 var(--primary), 0 -12px 40px -6px color-mix(in srgb, var(--primary) 45%, transparent); }
+:root[data-style="neon"] .char-stage {
+  background:
+    radial-gradient(ellipse 26% 5% at 50% 93%, color-mix(in srgb, var(--primary) 70%, transparent), transparent),
+    radial-gradient(60% 60% at 50% 45%, color-mix(in srgb, var(--neon2) 22%, transparent), transparent 70%),
+    var(--g-sheen), var(--g-bg);
+}
+:root[data-style="neon"] .badge { background: transparent; border: 1px solid var(--primary); }
+
+/* =====================================================================
+   МИНИМАЛИЗМ — много воздуха, тонкие линии, без теней и украшений.
+   Цвет остаётся только у занятий.
+   ===================================================================== */
+
+:root[data-style="minimal"] {
+  --rs: 0.6;
+  --head-w: 600; --head-ls: -0.035em;
+  --bg: #ffffff; --card: #ffffff; --text: #111113; --hint: #8b8b93;
+  --line: rgba(0, 0, 0, 0.10); --soft: rgba(0, 0, 0, 0.045);
+  --accent: #111113; --primary: var(--accent); --primary-text: #fff;
+  --g-bg: var(--card); --g-sheen: none; --g-border: var(--line); --g-filter: none; --g-shadow: none; --g-strong: var(--card);
+}
+:root[data-style="minimal"][data-scheme="dark"] {
+  --bg: #000000; --card: #0a0a0c; --text: #f4f4f5; --hint: #85858d;
+  --line: rgba(255, 255, 255, 0.15); --soft: rgba(255, 255, 255, 0.07);
+  --accent: #f4f4f5; --primary-text: #000;
+}
+:root[data-style="minimal"] #ambient { display: none; }
+:root[data-style="minimal"] .top h1 { font-size: 2rem; }
+:root[data-style="minimal"] .cur-time { font-weight: 300; font-size: 3.5rem; letter-spacing: -0.04em; }
+:root[data-style="minimal"] :is(.group-title, .day-title) { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.6875rem; }
+:root[data-style="minimal"] .tabbar {
+  left: 0; right: 0; bottom: 0; max-width: none; margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0;
+  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); padding: 0 0 env(safe-area-inset-bottom); background: var(--bg);
+}
+:root[data-style="minimal"] .tab.on { color: var(--text); }
+:root[data-style="minimal"] .tab.on .ic { transform: none; }
+:root[data-style="minimal"] .tab-ind { top: 0; bottom: auto; height: 2px; border-radius: 0; background: var(--text); box-shadow: none; }
+:root[data-style="minimal"] #screen { padding-bottom: calc(var(--tabbar-h) + 28px + env(safe-area-inset-bottom)); }
+:root[data-style="minimal"] .seg { background: transparent; }
+:root[data-style="minimal"] .seg-ind { box-shadow: none; }
+:root[data-style="minimal"] .act-btn:not(.on) .act-ic { background: transparent; border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); }
+:root[data-style="minimal"] .icon-btn { border: 1px solid var(--line); box-shadow: none; }
+:root[data-style="minimal"] :is(.cat-tab.on, .ct-btn.on) { box-shadow: none; border-color: transparent; }
+:root[data-style="minimal"] .sheet {
+  border: 0; border-top: 1px solid var(--line); background: var(--card); box-shadow: 0 -24px 60px rgba(0, 0, 0, 0.10);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+:root[data-style="minimal"] .item.r-rare { box-shadow: inset 0 -2px 0 #3b82f6; }
+:root[data-style="minimal"] .item.r-legendary { box-shadow: inset 0 -2px 0 #f59e0b; }
+:root[data-style="minimal"] .char-stage { background: radial-gradient(ellipse 24% 4% at 50% 93%, rgba(0, 0, 0, 0.14), transparent), var(--card); }
+:root[data-style="minimal"] :is(.act-btn.on .act-ic, .btn-stop, .task-act.stop, .rec .bar, .lg i, .tot-name i, .tip-row i, .chip i, .chart svg, .current:not(.idle)::before) { animation: none; }
+:root[data-style="minimal"] :is(.act-btn.on .act-ic, .btn-stop, .task-act.stop, .rec .bar)::after { display: none; }
+
+/* =====================================================================
+   БУМАГА — блокнот: тёплая бумага в линейку, чернильные рамки с
+   «рукописными» углами, рукописные заголовки. Тёмный вариант — меловая доска.
+   ===================================================================== */
+
+:root[data-style="paper"] {
+  --rs: 0.9; --bw: 1.5px;
+  --font-head: 'Caveat', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; --font-num: var(--font-head);
+  --head-w: 700; --head-ls: 0;
+  --ink: #3d352e;
+  --bg: #f1eadb; --card: #fffdf6; --text: #2f2a26; --hint: #8a7f70;
+  --line: rgba(61, 53, 46, 0.20); --soft: rgba(61, 53, 46, 0.07);
+  --accent: #3b6fd4; --primary: var(--accent); --primary-text: #fff;
+  --g-bg: var(--card); --g-sheen: none; --g-border: var(--ink); --g-filter: none; --g-strong: var(--card);
+  --g-shadow: 2px 3px 0 0 rgba(61, 53, 46, 0.22);
+  --wob: calc(22px * var(--rs)) calc(8px * var(--rs)) calc(18px * var(--rs)) calc(7px * var(--rs)) / calc(8px * var(--rs)) calc(18px * var(--rs)) calc(7px * var(--rs)) calc(22px * var(--rs));
+}
+:root[data-style="paper"][data-scheme="dark"] {
+  --ink: rgba(243, 240, 230, 0.80);
+  --bg: #222c27; --card: #29352f; --text: #f3f0e6; --hint: #a3b0a3;
+  --line: rgba(243, 240, 230, 0.20); --soft: rgba(243, 240, 230, 0.08);
+  --accent: #ffd66b; --primary-text: #2a2a20;
+  --g-shadow: 2px 3px 0 0 rgba(0, 0, 0, 0.30);
+}
+:root[data-style="paper"] #ambient {
+  inset: 0; animation: none;
+  background:
+    linear-gradient(90deg, transparent 27px, rgba(214, 80, 80, 0.28) 27px, rgba(214, 80, 80, 0.28) 28.5px, transparent 28.5px),
+    repeating-linear-gradient(180deg, transparent 0 31px, rgba(70, 110, 170, 0.17) 31px 32px);
+}
+:root[data-style="paper"][data-scheme="dark"] #ambient {
+  background: repeating-linear-gradient(180deg, transparent 0 31px, rgba(243, 240, 230, 0.05) 31px 32px);
+}
+:root[data-style="paper"] :is(.card, .act-btn, .item, .empty, .btn, .seg, .quick, .tabbar, .toast, .act-add, .tip, .field input, textarea.code) { border-radius: var(--wob); }
+:root[data-style="paper"] :is(.balance, .cat-tab, .ct-btn, .btn-small, .chip-btn, .nav-btn, .icon-btn, .seg-ind, .badge, .act-ic, .rate-ic, .me-ic, .task-act, .step, .icon-opt, .quick-add) {
+  border-radius: calc(16px * var(--rs)) calc(9px * var(--rs)) calc(14px * var(--rs)) calc(8px * var(--rs)) / calc(9px * var(--rs)) calc(14px * var(--rs)) calc(8px * var(--rs)) calc(16px * var(--rs));
+}
+:root[data-style="paper"] :is(.btn, .icon-btn, .field input, textarea.code) { border: var(--bw) solid var(--ink); }
+:root[data-style="paper"] :is(.btn-primary, .btn-stop, .btn-danger, .tr-color, .icon-btn) { box-shadow: var(--g-shadow); }
+:root[data-style="paper"] .top h1 {
+  font-size: 2.75rem; line-height: 1; width: fit-content; padding: 0 6px 2px 2px;
+  background: linear-gradient(transparent 58%, color-mix(in srgb, var(--primary) 30%, transparent) 58% 92%, transparent 92%);
+}
+:root[data-style="paper"] .sec-head h2 { font-size: 1.9rem; line-height: 1; }
+:root[data-style="paper"] .sheet h3 { font-size: 1.9rem; line-height: 1.05; }
+:root[data-style="paper"] .cur-time { font-size: 4rem; line-height: 1; margin: 2px 0 8px; letter-spacing: 0.02em; }
+:root[data-style="paper"] :is(.balance, .rate-balance, .try-price) { font-size: 1.5rem; line-height: 1.1; }
+:root[data-style="paper"] .rate-balance, :root[data-style="paper"] .try-price { font-size: 2.5rem; }
+:root[data-style="paper"] .tr-big b { font-size: 3.2rem; }
+:root[data-style="paper"] .act-name { font-family: var(--font-head); font-size: 1.6rem; line-height: 1; }
+:root[data-style="paper"] .act-btn.small .act-name { font-size: 1.3rem; }
+:root[data-style="paper"] .btn { font-family: var(--font-head); font-size: 1.4rem; line-height: 1; }
+:root[data-style="paper"] .act-btn.on { border-color: var(--c); box-shadow: 2px 3px 0 0 color-mix(in srgb, var(--c) 55%, transparent); }
+:root[data-style="paper"] .act-add { border-style: dashed; border-color: var(--hint); box-shadow: none; }
+:root[data-style="paper"] .seg-ind { box-shadow: none; }
+:root[data-style="paper"] .tab-ind { background: color-mix(in srgb, var(--primary) 22%, transparent); box-shadow: none; border-radius: 14px 8px 12px 7px / 8px 12px 7px 14px; }
+:root[data-style="paper"] .sheet { border: var(--bw) solid var(--ink); border-bottom: 0; background: var(--card); -webkit-backdrop-filter: none; backdrop-filter: none; }
+:root[data-style="paper"] .check { border-color: var(--ink); }
+:root[data-style="paper"] :is(.cat-tab.on, .ct-btn.on) { box-shadow: var(--g-shadow); }
+:root[data-style="paper"] .char-stage {
+  background:
+    radial-gradient(ellipse 24% 4% at 50% 93%, rgba(61, 53, 46, 0.22), transparent),
+    repeating-linear-gradient(180deg, transparent 0 23px, rgba(70, 110, 170, 0.16) 23px 24px), var(--card);
+}
+:root[data-style="paper"] :is(.act-btn.on .act-ic, .btn-stop, .task-act.stop, .rec .bar, .lg i, .tot-name i, .tip-row i, .chip i, .chart svg, .current:not(.idle)::before) { animation: none; }
+:root[data-style="paper"] :is(.act-btn.on .act-ic, .btn-stop, .task-act.stop, .rec .bar)::after { display: none; }
+
+/* =====================================================================
+   МЯГКИЙ ОБЪЁМ — всё будто выдавлено из одного материала: выпуклые
+   кнопки с двойной тенью, нажатые — вдавлены.
+   ===================================================================== */
+
+:root[data-style="soft"] {
+  --rs: 1.1; --bw: 0px;
+  --hi: #ffffff; --lo: #c2c9d6;
+  --bg: #e7ebf1; --card: #e7ebf1; --text: #39414f; --hint: #6f7a90;
+  --line: rgba(120, 130, 150, 0.22); --soft: rgba(120, 130, 150, 0.10);
+  --accent: #6c7cf0; --primary: var(--accent); --primary-text: #fff;
+  --g-bg: var(--card); --g-sheen: none; --g-border: transparent; --g-filter: none; --g-strong: var(--card);
+  --g-shadow: 6px 6px 14px var(--lo), -6px -6px 14px var(--hi);
+  --g-inset: inset 4px 4px 9px var(--lo), inset -4px -4px 9px var(--hi);
+}
+:root[data-style="soft"][data-scheme="dark"] {
+  --hi: #30343d; --lo: #16181c;
+  --bg: #24272e; --card: #24272e; --text: #e4e8ef; --hint: #8f97a8;
+  --line: rgba(255, 255, 255, 0.10); --soft: rgba(255, 255, 255, 0.05);
+  --accent: #7c8bf5;
+}
+:root[data-style="soft"] #ambient { display: none; }
+:root[data-style="soft"] :is(.seg, .field input, textarea.code, .act-btn.on, .item.on, .check) { box-shadow: var(--g-inset); border-color: transparent; }
+:root[data-style="soft"] :is(.field input, textarea.code) { border: 0; background: var(--card); }
+:root[data-style="soft"] .check { border: 0; }
+:root[data-style="soft"] .seg { background: var(--card); padding: 6px; }
+:root[data-style="soft"] .seg-ind { box-shadow: 3px 3px 8px var(--lo), -3px -3px 8px var(--hi); }
+:root[data-style="soft"] :is(.btn-primary, .btn-stop, .btn-danger, .tr-color, .icon-btn, .quick-add) { box-shadow: 5px 5px 12px var(--lo), -5px -5px 12px var(--hi); }
+:root[data-style="soft"] .icon-btn { background: var(--card); }
+:root[data-style="soft"] :is(button, .me-card):active:not(:disabled):not(.btn-primary):not(.btn-stop):not(.btn-danger) { box-shadow: var(--g-inset); }
+:root[data-style="soft"] .act-btn:not(.on) .act-ic { background: var(--card); box-shadow: 3px 3px 7px var(--lo), -3px -3px 7px var(--hi); }
+:root[data-style="soft"] .tabbar { box-shadow: 0 10px 26px var(--lo), 0 0 0 1px var(--line); }
+:root[data-style="soft"] .tab-ind { background: var(--card); box-shadow: var(--g-inset); }
+:root[data-style="soft"] .sheet { border: 0; background: var(--card); box-shadow: 0 -10px 30px var(--lo); -webkit-backdrop-filter: none; backdrop-filter: none; }
+:root[data-style="soft"] :is(.cat-tab.on, .ct-btn.on) { box-shadow: 3px 3px 8px var(--lo), -3px -3px 8px var(--hi); }
+:root[data-style="soft"] .item.r-rare { box-shadow: var(--g-shadow), inset 0 -3px 0 #3b82f6; }
+:root[data-style="soft"] .item.r-legendary { box-shadow: var(--g-shadow), inset 0 -3px 0 #f59e0b; }
+:root[data-style="soft"] .char-stage { background: radial-gradient(ellipse 24% 4% at 50% 93%, rgba(0, 0, 0, 0.16), transparent), var(--card); box-shadow: var(--g-inset); }
+:root[data-style="soft"] .act-add { border-color: var(--line); }
+
+/* ---------- мелкие правки после проверки всех экранов ---------- */
+
+/* Мягкий объём: «ямка» галочки задачи почти не видна — тонкое кольцо по краю */
+:root[data-style="soft"] .check { box-shadow: var(--g-inset), inset 0 0 0 2px color-mix(in srgb, var(--hint) 60%, transparent); }
+:root[data-style="soft"] .task.done .check { box-shadow: none; }
+
+/* Пиксель, тёмная тема: синие и фиолетовые значки и графики трекеров сливались с синей карточкой */
+:root[data-style="pixel"][data-scheme="dark"] :is(.me-ic, .me-spark) { filter: brightness(1.45) saturate(1.1); }
